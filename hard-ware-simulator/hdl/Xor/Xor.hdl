@@ -1,0 +1,19 @@
+/* Xor(exclusive or) gate: If a<>b out 1 else out=0.  */
+CHIP Xor {
+    IN a, b;
+    OUT out;
+    PARTS:
+    /* a,bをNOTする */
+    Nand(a=a, b=a, out=nota);
+    Nand(a=b, b=b, out=notb);
+    /* a, notbのAnd */
+    Nand(a=a, b=notb, out=t1);
+    Nand(a=t1, b=t1, out=w1);
+    /* b, notaのAnd */
+    Nand(a=nota, b=b, out=t2);
+    Nand(a=t2, b=t2, out=w2);
+    /* w1, w2のor */
+    Nand(a=w1, b=w1, out=notw1);
+    Nand(a=w2, b=w2, out=notw2);
+    Nand(a=notw1, b=notw2, out=out);
+}

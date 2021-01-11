@@ -1,0 +1,14 @@
+/* Mux(Multiplexor) IF sel=0 then out=a else out b */
+CHIP Mux {
+    IN a, b, sel;
+    OUT out;
+    PARTS:
+    /* aの値抽出用のフラグ(0の時aを出すのでビット反転) */
+    Not(in=sel, out=notsel);
+    /* aの値抽出 */
+    And(a=a, b=notsel, out=w1);
+    /* bの値抽出 */
+    And(a=b, b=sel, out=w2);
+    /* 結果 */
+    Or(a=w1, b=w2, out=out);
+}
