@@ -1,0 +1,12 @@
+/* DMux(Demultiplexor) IF sel=0 then {a=in, b=0} else {a=0, b=in} */
+CHIP DMux {
+    IN in, sel;
+    OUT a, b;
+    PARTS:
+    /* aの値抽出用のフラグ(0の時aを出すのでビット反転) */
+    Not(in=sel, out=notsel);
+    /* aの値抽出 */
+    And(a=in, b=notsel, out=a);
+    /* bの値抽出 */
+    And(a=in, b=sel, out=b);
+}
