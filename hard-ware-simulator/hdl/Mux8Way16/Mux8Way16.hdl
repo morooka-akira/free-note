@@ -1,0 +1,23 @@
+/* 
+    Mux8Way16 
+    If      sel=000 then out=a 
+    else if sel=001 then out=b 
+    else if sel=010 then out=c
+    else if sel=011 then out=d
+    else if sel=100 then out=e
+    else if sel=101 then out=f
+    else if sel=110 then out=g
+    else if sel=111 then out=h
+*/
+CHIP Mux8Way16 {
+    IN a[16], b[16], c[16], d[16], e[16], f[16], g[16], h[16], sel[3];
+    OUT out[16];
+    PARTS:
+    Mux16(a=a, b=b, sel=sel[0], out=wab);
+    Mux16(a=c, b=d, sel=sel[0], out=wcd);
+    Mux16(a=e, b=f, sel=sel[0], out=wef);
+    Mux16(a=g, b=h, sel=sel[0], out=wgh);
+    Mux16(a=wab, b=wcd, sel=sel[1], out=wabcd);
+    Mux16(a=wef, b=wgh, sel=sel[1], out=wefgh);
+    Mux16(a=wabcd, b=wefgh, sel=sel[2], out=out);
+}
