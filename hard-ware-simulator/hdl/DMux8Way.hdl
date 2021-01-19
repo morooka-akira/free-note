@@ -1,0 +1,20 @@
+/*
+DMux8Way
+If      sel=000 than {a=in, b=c=d=e=f=g=h=0}
+else if sel=001 than {b=in, a=c=d=e=f=g=h=0}
+else if sel=010 than {c=in, a=b=d=e=f=g=h=0}
+else if sel=011 than {d=in, a=b=c=e=f=g=h=0}
+else if sel=100 than {e=in, a=b=c=d=f=g=h=0}
+else if sel=101 than {f=in, a=b=c=d=e=g=h=0}
+else if sel=110 than {g=in, a=b=c=d=e=f=h=0}
+else if sel=111 than {h=in, a=b=c=d=e=f=g=0}
+*/
+CHIP DMux8Way {
+    IN in, sel[3];
+    OUT a, b, c, d, e, f, g, h;
+    PARTS:
+    /* 最上位ビットで2分割 0xx => wa, 1xx => wb */
+    DMux(in=in, sel=sel[2], a=wa, b=wb);
+    DMux4Way(in=wa, sel=sel[0..1], a=a, b=b, c=c, d=d);
+    DMux4Way(in=wb, sel=sel[0..1], a=e, b=f, c=g, d=h);
+}

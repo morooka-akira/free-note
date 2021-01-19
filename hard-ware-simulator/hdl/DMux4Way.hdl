@@ -1,0 +1,18 @@
+/*
+   DMux4Way
+   If sel=00 then {a=in, b=c=d=0}
+   else sel=01 then {b=in, a=c=d=0}
+   else sel=10 then {c=in, a=b=d=0}
+   else sel=11 then {d=in, a=b=c=0}
+*/
+CHIP DMux4Way {
+    IN in, sel[2];
+    OUT a, b, c, d;
+    PARTS:
+    /* まず1ビット目で比較 1x(wa) or 0x(wb) */
+    DMux(in=in, sel=sel[1], a=wa, b=wb);
+    /* 0ビット目が0かどうかで a, bが決まる 00(a) or 01(b) */
+    DMux(in=wa, sel=sel[0], a=a, b=b);
+    /* 0ビット目が0かどうかで c, dが決まる 10(c) or 11(d) */
+    DMux(in=wb, sel=sel[0], a=c, b=d);
+}
