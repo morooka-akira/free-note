@@ -1,0 +1,13 @@
+/*
+FullAdder
+sum = a + b + cの最下位位ビット
+carry = a + b + cの最上位ビット
+*/
+CHIP FullAdder {
+    IN a, b, c;
+    OUT sum, carry;
+    PARTS: 
+    HalfAdder(a=a, b=b, sum=wsum, carry=wcarry1);
+    HalfAdder(a=wsum, b=c, sum=sum, carry=wcarry2);
+    Or(a=wcarry1, b=wcarry2, out=carry);
+}

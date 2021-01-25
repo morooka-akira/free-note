@@ -1,0 +1,12 @@
+/*
+HalfAdder
+sum = a + bの最下位位ビット
+carry = a + bの最上位ビット
+*/
+CHIP HalfAdder {
+    IN a, b;
+    OUT sum, carry;
+    PARTS: 
+    Xor(a=a, b=b, out=sum);
+    And(a=a, b=b, out=carry);
+}
