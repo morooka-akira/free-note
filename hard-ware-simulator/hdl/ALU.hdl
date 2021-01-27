@@ -1,0 +1,39 @@
+
+CHIP ALU {
+    IN 
+    x[16], y[16],
+    zx, // 入力xをゼロにする
+    nx, // 入力xを反転(negate)する
+    zy, // 入力yをゼロにする
+    ny, // 入力yを反転する
+    f,  // 関数コード: 1 => 「加算」0 => 「And演算」
+    no; // 出力outを反転させる
+    OUT out[16], zr, ng;
+    PARTS:
+    /* xの入力 */
+    Mux16(a=x, b=false, sel=zx, out=zxo);
+    Not16(in=zxo, out=nxo);
+    Mux16(a=zxo, b=nxo, sel=nx, out=xo);
+
+    /* yの入力 */
+    Mux16(a=y, b=false, sel=zy, out=zyo);
+    Not16(in=zyo, out=nyo);
+    Mux16(a=zyo, b=nyo, sel=ny, out=yo);
+
+    /* And or Addを計算してfの値から出力を振り分ける */
+    And16(a=xo, b=yo, out=ando);
+    Add16(a=xo, b=yo, out=addo);
+    Mux16(a=ando, b=addo, sel=f, out=fo);
+
+    /* outの反転 */ 
+    Not16(in=fo, out=nfo);
+    // 最終出力: 0ならそのまま、1なら反転を出力
+    /* ng: 最終ビットが1ならマイナス */ 
+    Mux16(a=fo, b=nfo, sel=no, out=out, out[0..7]=out07, out[8..15]=out815, out[15]=ng);
+
+    /* nzr: 1ビットでも立っていれば1になる */ 
+    Or8Way(in=out07, out=wnzr1);
+    Or8Way(in=out815, out=wnzr2);
+    Or(a=wnzr1, b=wnzr2, out=nzr);
+    Not(in=nzr, out=zr);
+}
