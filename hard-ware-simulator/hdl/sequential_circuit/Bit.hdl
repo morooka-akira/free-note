@@ -1,0 +1,14 @@
+/*
+Bit
+NOTE: 書き込みに1クロックかかるのでload(-1)になる
+If load(t-1) then out(t)=in(t-1) else out(t)=out(t-1)
+*/
+CHIP Bit {
+    IN in, load;
+    OUT out;
+    PARTS:
+    /* loadフラグをみて読み込み(0)または書き込み(1)を判断する */
+    /* load=1のときはinを保持する(書き込み)ためDFFに。load=0のときは前回の値を出力するためwoutをDFFに入れる */
+    Mux(a=wout, b=in, sel=load, out=win);
+    DFF(in=win, out=wout, out=out);
+}
