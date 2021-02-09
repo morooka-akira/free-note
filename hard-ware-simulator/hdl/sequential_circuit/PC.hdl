@@ -1,0 +1,20 @@
+/*
+If rest(t-1) then out(t)=0
+else if load(t-1) then out(t)=in(t-1)
+else if inc(t-1) then out(t)=in(t-1)+1
+else out(t)=out(t-1)
+*/
+CHIP PC {
+    IN in[16], inc, load, reset;
+    OUT out[16];
+    PARTS:
+    /* カウンタのインクリメント処理, incが1の時のみ前回の値をインクリメント */
+    Inc16(in=pout, out=winc);
+    Mux16(a=pout, b=winc, sel=inc, out=winc2);
+    /* load=1のときは値をinに上書き */
+    Mux16(a=winc2, b=in, sel=load, out=wload);
+    /* reset=1のときは値を0に上書き */
+    Mux16(a=wload, b=false, sel=reset, out=wreset);
+    /* Registerには常に書き込み(load=1) */
+    Register(in=wreset, load=true, out=out, out=pout);
+}
