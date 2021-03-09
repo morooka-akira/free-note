@@ -1,1 +1,4 @@
-[]
+- name: auth0
+  definition:
+    url: https://organized-flicker-brick.glitch.me
+    timeout_seconds: 60

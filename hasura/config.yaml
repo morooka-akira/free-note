@@ -1,5 +1,5 @@
 version: 2
-endpoint: https://hasura-ts.herokuapp.com/v1/graphql
+endpoint: https://hasura-ts.herokuapp.com
 metadata_directory: metadata
 actions:
   kind: synchronous
