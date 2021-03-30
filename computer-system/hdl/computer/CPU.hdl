@@ -26,7 +26,6 @@
  */
 
 CHIP CPU {
-
     IN  inM[16],         // M value input  (M = contents of RAM[A])
         instruction[16], // Instruction for execution
         reset;           // Signals whether to re-start the current
@@ -39,5 +38,69 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // ---- A命令かC命令かの制御ビット ----
+    // instruction-16ビット目が1ならC命令,0ならA命令
+    // ia=1ならA命令
+    Not(in=instruction[15], out=ia); 
+    // ---- Aレジスタに入れる内容を決める ----
+    // A命令ならinstructionを、C命令なら前回のoutを対象とする
+    Mux16(a=poutM, b=instruction, sel=ia, out=intoA);
+    // ---- Aレジスタに書き込むかどうかの制御ビット ----
+    // [A命令] or [C命令 + dest-1ビット目が1]ならAレジスタへの書き込みが発生する
+    Or(a=instruction[5], b=ia, out=loadA);
+    // ---- Aレジスタへの書き込み ----
+    ARegister(in=intoA, load=loadA, out=dataA, out[0..14]=addressM);
+
+    // ---- ALUで使うAorDレジスタを決める ----
+    // C命令のcomp領域1ビット目(aビット)は計算にAレジスタまたはDレジスタを使うか判定する
+    // aビットが1ならMレジスタ, 0ならAレジスタが計算に使われる
+    Mux16(a=dataA, b=inM, sel=instruction[12], out=dataAorM);
+
+    // ---- ALUの計算 ----
+    // x=Dレジスタ, y=AorMレジスタを設定
+    // zx: Dレジスタを使うかどうか => c1ビットで決まる
+    // nx: Dレジスタを反転して使用 => c2ビットで決まる
+    // zy: AorMレジスタを使うかどうか => c3ビットで決まる
+    // ny: AorMレジスタを反転して使用 => c4ビットで決まる
+    // f: 加算処理するか => c5ビットで決まる
+    // no: 出力(out)を反転するか => c6ビットで決まる
+    ALU(x=dataD, y=dataAorM, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=poutM, out=outM, zr=zr, ng=ng);
+    
+    // ---- Dレジスタに書き込むかどうかの制御ビット ----
+    // [C命令 + dest-2ビット目が1]ならDレジスタへの書き込みが発生する
+    And(a=instruction[15], b=instruction[4], out=loadD);
+    DRegister(in=poutM, load=loadD, out=dataD);
+
+    // ---- Mレジスタに書き込むかどうかの制御ビット ----
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    // ---- JUMPの制御 ----
+    // 基本的に[0 < out: jgt], [0 = out: jeq], [0 > out: jlt]の3つのフラグだけ押さえれば良い
+    // その他のjge, jle, jmpは上記3のOr条件のためいずれかが成立していればJUMPできるため
+
+    // 0以上か(ngは負数かどうかをみているだけなのでposには0も含まれる)
+    Not(in=ng, out=pos);
+    // 0ではない
+    Not(in=zr, out=nzr);
+    // 0より大きい
+    And(a=pos, b=nzr, out=posnzr);
+
+    // jgtフラグ=1かどうか
+    And(a=instruction[15], b=instruction[0], out=jgt);
+    And(a=jgt, b=posnzr, out=ljgt);
+
+    // jeqフラグ=1かどうか
+    And(a=instruction[15], b=instruction[1], out=jeq);
+    And(a=jeq, b=zr, out=ljeq);
+
+    // jltフラグ=1かどうか
+    And(a=instruction[15], b=instruction[2], out=jlt);
+    And(a=jlt, b=ng, out=ljlt);
+
+    // いずれかのフラグが立っていればjumpする
+    Or(a=ljgt, b=ljeq, out=ltmp);
+    Or(a=ljlt, b=ltmp, out=loadPC);
+
+    // C命令の場合、一つ前のAレジスタにジャンプ先が格納されている
+    PC(in=dataA, load=loadPC, inc=true, reset=reset, out[0..14]=pc);
 }

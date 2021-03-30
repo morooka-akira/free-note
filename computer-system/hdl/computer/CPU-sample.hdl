@@ -1,0 +1,64 @@
+CHIP CPU {
+    IN  inM[16],      // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset=1) or continue executing
+                         // the current program (reset=0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write into M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // ni: A命令を実行するためのフラグ
+    // instructionの1ビット目が0だった時に1を立てるためのフラグ
+	Not(in=instruction[15],out=ni);
+    // outtM: 1クロック前のout
+    // i: A命令の場合はinstructionが入る, c命令の場合は1クロック前のoutが入る
+    // A命令の場合は、instructionをC命令の場合は前回のALUの出力が選択される
+	Mux16(a=outtM,b=instruction,sel=ni,out=i);
+
+    // 格納先のレジスタを判定する
+    // instruction[5]はdestの1ビット目(d1)が1の場合はAレジスタが格納先になる
+    // niは1の場合A命令0の場合C命令なので、dataの6ビット目を見てしまうことはない
+	Or(a=ni,b=instruction[5],out=intoA);
+    // A命令: 0-15ビットをAレジスタに登録
+	ARegister(in=i,load=intoA,out=A,out[0..14]=addressM);
+
+    // compのaビットを抽出 => AorM
+	And(a=instruction[15],b=instruction[12],out=AorM);
+    // M入力値とAレジスタの値のどちらをデータとして使うかの選択
+    // AorMが1の場合は、Mレジスタを使う
+	Mux16(a=A,b=inM,sel=AorM,out=AM);
+    // D: Dレジスタの値は1クロック前	
+    // AM: Aレジスタの値かMレジスタ
+    // zx: comp2ビット目が1の場合は、xは使わない
+    // outはouttMとoutMの2つに格納
+	ALU(x=D,y=AM,zx=instruction[11],nx=instruction[10],zy=instruction[9],ny=instruction[8],f=instruction[7],no=instruction[6],out=outtM,out=outM,zr=zr,ng=ng);
+
+    // destの2ビット目をみて1ならDレジスタに書き込む
+	And(a=instruction[15],b=instruction[4],out=intoD);
+	DRegister(in=outtM,load=intoD,out=D);
+
+    // destの3ビット目をみて1ならoutMに出力するためのフラグを1にする
+	And(a=instruction[15],b=instruction[3],out=writeM);
+
+	Not(in=ng,out=pos);
+	Not(in=zr,out=nzr);
+	And(a=instruction[15],b=instruction[0],out=jgt);
+	And(a=pos,b=nzr,out=posnzr);
+	And(a=jgt,b=posnzr,out=ld1);
+
+	And(a=instruction[15],b=instruction[1],out=jeq);
+	And(a=jeq,b=zr,out=ld2);
+
+	And(a=instruction[15],b=instruction[2],out=jlt);
+	And(a=jlt,b=ng,out=ld3);
+
+	Or(a=ld1,b=ld2,out=ldt);
+	Or(a=ld3,b=ldt,out=ld);
+
+	PC(in=A,load=ld,inc=true,reset=reset,out[0..14]=pc);
+
+}
