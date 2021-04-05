@@ -27,5 +27,20 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 15ビット目が1の場合はScreen or Keyboard(1xx)
+    // 14ビット目も1の場合はキーボード(11x)
+    // 15ビット目が0の場合はRAM(01x)
+    // ----- loadフラグの分岐 ------
+    // 00 or 01=>RAM 10=>Screen 11=>Keyboard{}
+    DMux4Way(in=load, sel=address[13..14], a=loadRAM1, b=loadRAM2, c=loadSrc, d=loadKey);
+    // RAMのフラグは1つにする
+    Or(a=loadRAM1, b=loadRAM2, out=loadRAM);
+    // Screenの書き込み
+    Screen(in=in, load=loadSrc, address=address[0..12], out=outSrc);
+    // RAMへの書き込み
+    RAM16K(in=in, load=loadRAM, address=address[0..13], out=outRAM);
+    // Keyboard
+    Keyboard(out=outKey);
+    // Outの出し分け
+    Mux4Way16(a=outRAM, b=outRAM, c=outSrc, b=outKey, sel=address[13..14], out=out);
 }
