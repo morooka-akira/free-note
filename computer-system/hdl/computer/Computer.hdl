@@ -13,11 +13,10 @@
  * screen may show some output and the user may be able to interact 
  * with the computer via the keyboard.
  */
-
 CHIP Computer {
-
     IN reset;
-
     PARTS:
-    // Put your code here:
+    ROM32K(address=pc, out=instruction);
+    CPU(inM=inM, reset=reset, instruction=instruction, outM=outM, writeM=writeM, addressM=addressM, pc=pc);
+    Memory(in=outM, load=writeM, address=addressM, out=inM);
 }
