@@ -25,7 +25,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut contents = String::new();
     f.read_to_string(&mut contents)?;
 
-    parser::parse(&config.filename);
+    let commands = parser::parse(&config.filename)?;
 
     Ok(())
 }
