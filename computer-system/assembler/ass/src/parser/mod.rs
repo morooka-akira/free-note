@@ -29,7 +29,40 @@ pub enum DestType {
     A,
     AM,
     AD,
-    ADM,
+    AMD,
+    Null
+}
+
+#[derive(Debug, PartialEq)]
+pub enum CompType {
+    Zero,
+    One,
+    NeOne,
+    D,
+    A,
+    NotD,
+    NotA,
+    NeD,
+    NeA,
+    Dadd1,
+    Aadd1,
+    Dsub1,
+    Asub1,
+    DaddA,
+    DsubA,
+    AsubD,
+    DandA,
+    DorA,
+    M,
+    NotM,
+    NeM,
+    Madd1,
+    Msub1,
+    DaddM,
+    DsubM,
+    MsubD,
+    DandM,
+    DorM,
     Null
 }
 
@@ -88,7 +121,7 @@ impl Command {
                 "A" => DestType::A,
                 "AM" => DestType::AM,
                 "AD" => DestType::AD,
-                "ADM" => DestType::ADM,
+                "AMD" => DestType::AMD,
                 _ => DestType::Null
             } 
         } else {
@@ -96,8 +129,8 @@ impl Command {
         }
     }
 
-    pub fn comp(&self) -> &str {
-        if self.has_jump() {
+    pub fn comp(&self) -> CompType {
+        let c = if self.has_jump() {
             let a: Vec<&str> = self.raw.split(';').collect();
             a[0]
         } else if self.has_eq() {
@@ -105,6 +138,37 @@ impl Command {
             a[1]
         } else {
             ""
+        };
+        match c {
+            "0" => CompType::Zero,
+            "1" => CompType::One,
+            "-1" => CompType::NeOne,
+            "D" => CompType::D,
+            "A" => CompType::A,
+            "!D" => CompType::NotD,
+            "!A" => CompType::NotA,
+            "-D" => CompType::NeD,
+            "-A" => CompType::NeA,
+            "D+1" => CompType::Dadd1,
+            "A+1" => CompType::Aadd1,
+            "D-1" => CompType::Dsub1,
+            "A-1" => CompType::Asub1,
+            "D+A" => CompType::DaddA,
+            "D-A" => CompType::DsubA,
+            "A-D" => CompType::AsubD,
+            "D&A" => CompType::DandA,
+            "D|A" => CompType::DorA,
+            "M" => CompType::M,
+            "!M" => CompType::NotM,
+            "-M" => CompType::NeM,
+            "M+1" => CompType::Madd1,
+            "M-1" => CompType::Msub1,
+            "D+M" => CompType::DaddM,
+            "D-M" => CompType::DsubM,
+            "M-D" => CompType::MsubD,
+            "D&M" => CompType::DandM,
+            "D|M" => CompType::DorM,
+            _ => CompType::Null,
         }
     }
 
@@ -366,11 +430,11 @@ mod tests {
 
         #[test]
         fn sub_adm() {
-            let q = "ADM=0";
+            let q = "AMD=0";
             let p = parse_line(&q);
             assert_eq!(
                 p.unwrap().dest(),
-                DestType::ADM,
+                DestType::AMD,
             );
         }
     }
@@ -382,11 +446,11 @@ mod tests {
         fn jump() {
             assert_eq!(
                 parse_line(&"0;JMP").unwrap().comp(),
-                "0",
+                CompType::Zero,
             );
             assert_eq!(
                 parse_line(&"D;JGT").unwrap().comp(),
-                "D",
+                CompType::D,
             );
         }
 
@@ -394,15 +458,19 @@ mod tests {
         fn sub() {
             assert_eq!(
                 parse_line(&"D=D-A").unwrap().comp(),
-                "D-A",
+                CompType::DsubA,
             );
             assert_eq!(
                 parse_line(&"M=D+M").unwrap().comp(),
-                "D+M",
+                CompType::DaddM,
             );
             assert_eq!(
                 parse_line(&"D=A").unwrap().comp(),
-                "A",
+                CompType::A,
+            );
+            assert_eq!(
+                parse_line(&"DDA").unwrap().comp(),
+                CompType::Null,
             );
         }
     }

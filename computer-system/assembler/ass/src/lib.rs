@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::error::Error;
 
 pub mod parser;
+pub mod code;
 
 pub struct Config {
     filename: String,
