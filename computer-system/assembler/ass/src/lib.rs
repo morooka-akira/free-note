@@ -4,6 +4,7 @@ use std::error::Error;
 
 pub mod parser;
 pub mod code;
+pub mod symbol_table;
 
 pub struct Config {
     filename: String,
@@ -27,6 +28,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     f.read_to_string(&mut contents)?;
 
     let commands = parser::parse(&config.filename)?;
+    code::compile(commands);
 
     Ok(())
 }

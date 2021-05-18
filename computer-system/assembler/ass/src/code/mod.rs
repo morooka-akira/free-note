@@ -1,6 +1,19 @@
-use crate::parser::DestType;
-use crate::parser::JumpType;
-use crate::parser::CompType;
+use crate::parser::*;
+
+pub fn compile(commands: Vec<Command>)  {
+    for com in commands {
+        match com.command_type() {
+            CommandType::A => {
+                let n: i32 = com.symbol().parse().unwrap();
+                println!("0{:015b}", n);
+            },
+            CommandType::C => {
+                println!("111{}{}{}", comp(com.comp()), dest(com.dest()), jump(com.jump()));
+            },
+            _ => println!("unknown type"),
+        }
+    }
+}
 
 fn dest(dest_type: DestType) -> String {
     match dest_type {
@@ -132,4 +145,5 @@ mod tests {
             assert_eq!(comp(CompType::DorM),    "1010101");
         }
     }
+
 }
