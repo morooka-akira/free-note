@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
 
+use crate::symbol_table::SymbolTable;
+
 pub mod parser;
 pub mod code;
 pub mod symbol_table;
@@ -28,7 +30,10 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     f.read_to_string(&mut contents)?;
 
     let commands = parser::parse(&config.filename)?;
-    code::compile(commands);
+
+    let mut s_table = SymbolTable::new();
+    s_table.map_symbols(&commands);
+    code::compile(&commands, &s_table);
 
     Ok(())
 }

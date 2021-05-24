@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use crate::parser::Command;
+use crate::parser::CommandType;
+use std::num::ParseIntError;
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
@@ -13,6 +16,26 @@ impl SymbolTable {
             rom: 0,
             ram: 16, // RAMのスタートは16から
             map: HashMap::new(),
+        }
+    }
+
+    pub fn map_symbols(&mut self, commands: &Vec<Command>) {
+        // NOTE: 1回目のループではラベルをマッピング
+        for command in commands {
+            if command.command_type() == CommandType::L {
+                self.add_label(&command.symbol());
+                continue;
+            }
+            self.next_step();
+        }
+        // NOTE: 2回目のループでは変数をマッピング
+        for command in commands {
+            if command.command_type() == CommandType::A {
+                let p: Result<i32, ParseIntError> = command.symbol().parse();
+                if p.is_err() {
+                    self.add_variable(&command.symbol());
+                }
+            }
         }
     }
     
@@ -52,6 +75,25 @@ impl SymbolTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::*;
+
+    #[test]
+    fn test_map_symbols() {
+        let mut t = SymbolTable::new();
+        
+        let mut commands: Vec<Command> = Vec::new();
+        let test_lines = ["@a", "(LOOP)", "@100", "(END)", "@END"];
+        for l in test_lines.iter() {
+            let c  = parse_line(&l).unwrap();
+            commands.push(c.clone());
+        }
+        t.map_symbols(&commands);
+        println!("{:?}", t);
+        assert_eq!(t.get_address(&"a").unwrap(), 16);
+        assert_eq!(t.get_address(&"LOOP").unwrap(), 1);
+        assert_eq!(t.get_address(&"END").unwrap(), 2);
+    }
+
     #[test]
     fn test_next_step() {
         let mut t = SymbolTable::new();

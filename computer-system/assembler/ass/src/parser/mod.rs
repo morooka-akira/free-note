@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
+use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 pub enum CommandType {
@@ -73,20 +74,26 @@ pub struct Command {
 
 impl Command {
     pub fn command_type(&self) -> CommandType {
-        // NOTE: 現時点ではシンボルが未実装のためAコマンドでないならCコマンドになる
+        let re = Regex::new("\\(.+\\)").unwrap();
         if self.raw.starts_with("@") {
             CommandType::A
+        } else if re.is_match(&self.raw) {
+            CommandType::L
         } else {
             CommandType::C
         }
     }
 
-    pub fn symbol(&self) -> &str {
+    pub fn symbol(&self) -> String {
         if self.command_type() == CommandType::A {
             let t: Vec<&str> = self.raw.split('@').collect();
-            t[1]
+            t[1].to_string()
+        } else if self.command_type() == CommandType::L {
+            let re = Regex::new("\\((.+)\\)").unwrap();
+            let caps = re.captures(&self.raw).unwrap();
+            caps[1].to_string()
         } else {
-            ""
+            "".to_string()
         }
     }
 
@@ -200,15 +207,16 @@ pub fn parse(filename: &str) -> Result<Vec<Command>, Box<dyn Error>> {
             commands.push(c.clone());
         }
     }
-
     Ok(commands)
 }
 
-fn parse_line(line: &str) -> Option<Command> {
-    let sanitized = line.trim();
-    if sanitized.starts_with("//") {
+pub fn parse_line(line: &str) -> Option<Command> {
+    if line.starts_with("//") {
       return None;
     } 
+    let r = Regex::new(r"//.*").unwrap();
+    let t = r.replace(line, "");
+    let sanitized = t.trim();
     Some(Command { raw: sanitized.to_string() })
 }
 
@@ -244,12 +252,21 @@ mod tests {
 
         #[test]
         fn type_a() {
-            let query = "@100";
-            let res = parse_line(&query);
-            let command = res.unwrap();
             assert_eq!(
-                command.command_type(),
+                parse_line(&"@100").unwrap().command_type(),
                 CommandType::A
+            );
+        }
+
+        #[test]
+        fn type_l() {
+            assert_eq!(
+                parse_line(&"(LOOP)").unwrap().command_type(),
+                CommandType::L
+            );
+            assert_eq!(
+                parse_line(&"(h)").unwrap().command_type(),
+                CommandType::L
             )
         }
     }
@@ -258,13 +275,22 @@ mod tests {
         use super::*;
 
         #[test]
-        fn success() {
-            let query = "@100";
-            let res = parse_line(&query);
-            let command = res.unwrap();
+        fn test_type_a() {
             assert_eq!(
-                command.symbol(),
+                parse_line(&"@100").unwrap().symbol(),
                 "100"
+            );
+            assert_eq!(
+                parse_line(&"@a").unwrap().symbol(),
+                "a"
+            )
+        }
+
+        #[test]
+        fn test_type_l() {
+            assert_eq!(
+                parse_line(&"(LOOP)").unwrap().symbol(),
+                "LOOP"
             )
         }
     }

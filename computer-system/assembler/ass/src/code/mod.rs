@@ -1,16 +1,24 @@
+use std::num::ParseIntError;
 use crate::parser::*;
+use crate::symbol_table::SymbolTable;
 
-pub fn compile(commands: Vec<Command>)  {
+pub fn compile(commands: &Vec<Command>, symbol_table: &SymbolTable)  {
     for com in commands {
         match com.command_type() {
             CommandType::A => {
-                let n: i32 = com.symbol().parse().unwrap();
-                println!("0{:015b}", n);
+                let n: Result<i32, ParseIntError> = com.symbol().parse();
+                if n.is_ok() {
+                    println!("0{:015b}", n.unwrap());
+                } else {
+                    println!("0{:015b}", symbol_table.get_address(&com.symbol()).unwrap());
+                }
             },
             CommandType::C => {
                 println!("111{}{}{}", comp(com.comp()), dest(com.dest()), jump(com.jump()));
             },
-            _ => println!("unknown type"),
+            CommandType::L => {
+                // DO NOTHING
+            },
         }
     }
 }
