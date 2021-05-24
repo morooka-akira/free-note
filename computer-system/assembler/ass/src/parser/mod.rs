@@ -211,12 +211,14 @@ pub fn parse(filename: &str) -> Result<Vec<Command>, Box<dyn Error>> {
 }
 
 pub fn parse_line(line: &str) -> Option<Command> {
-    if line.starts_with("//") {
+    let trim = Regex::new(r"\s+").unwrap().replace_all(line, "");
+    // コメント/空行は除外
+    if trim.starts_with("//") || trim == ""  {
       return None;
     } 
-    let r = Regex::new(r"//.*").unwrap();
-    let t = r.replace(line, "");
-    let sanitized = t.trim();
+    // 後方コメントも除外
+    let comment = Regex::new(r"//.*").unwrap().replace(&trim, "");
+    let sanitized = comment;
     Some(Command { raw: sanitized.to_string() })
 }
 
@@ -229,13 +231,13 @@ mod tests {
 
         #[test]
         fn test_include_empty() {
-            let query = "  command str ";
+            let query = "  D=   M ";
             let res = parse_line(&query);
             assert!(res.is_some());
             let command = res.unwrap();
             assert_eq!(
                 command.raw,
-                "command str"
+                "D=M"
             );
         }
 
@@ -244,6 +246,14 @@ mod tests {
             let query = "// some comment";
             let res = parse_line(&query);
             assert!(res.is_none());
+        }
+
+        #[test]
+        fn test_white_space() {
+            assert_eq!(
+                parse_line(&"0; JMP").unwrap().raw,
+                "0;JMP",
+            );
         }
     }
 
