@@ -1,8 +1,10 @@
 use std::num::ParseIntError;
 use crate::parser::*;
 use crate::symbol_table::SymbolTable;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 
-pub fn compile(commands: &Vec<Command>, symbol_table: &SymbolTable)  {
+pub fn compile_to_stdout(commands: &Vec<Command>, symbol_table: &SymbolTable)  {
     for com in commands {
         match com.command_type() {
             CommandType::A => {
@@ -21,6 +23,29 @@ pub fn compile(commands: &Vec<Command>, symbol_table: &SymbolTable)  {
             },
         }
     }
+}
+
+pub fn compile_to_file(commands: &Vec<Command>, symbol_table: &SymbolTable, output: String)  {
+    let mut file = BufWriter::new(File::create(output).unwrap());
+    for com in commands {
+        match com.command_type() {
+            CommandType::A => {
+                let n: Result<i32, ParseIntError> = com.symbol().parse();
+                if n.is_ok() {
+                    write!(file, "0{:015b}\n", n.unwrap()).unwrap();
+                } else {
+                    write!(file, "0{:015b}\n", symbol_table.get_address(&com.symbol()).unwrap()).unwrap();
+                }
+            },
+            CommandType::C => {
+                write!(file, "111{}{}{}\n", comp(com.comp()), dest(com.dest()), jump(com.jump())).unwrap();
+            },
+            CommandType::L => {
+                // DO NOTHING
+            },
+        }
+    }
+    file.flush().unwrap();
 }
 
 fn dest(dest_type: DestType) -> String {

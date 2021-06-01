@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
+use getopts::Matches;
 
 use crate::symbol_table::SymbolTable;
 
@@ -10,16 +11,18 @@ pub mod symbol_table;
 
 pub struct Config {
     filename: String,
+    output: Option<String>,
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 2 {
+    pub fn new(matches: &Matches) -> Result<Config, &'static str> {
+        if matches.free.len() < 1 {
             return Err("not enough arguments");
         }
-        let filename = args[1].clone();
+        let filename = matches.free[0].clone();
+        let output = matches.opt_str("o");
 
-        Ok(Config { filename })
+        Ok(Config { filename, output })
     }
 }
 
@@ -33,36 +36,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
     let mut s_table = SymbolTable::new();
     s_table.map_symbols(&commands);
-    code::compile(&commands, &s_table);
+    if let Some(path) = config.output {
+        code::compile_to_file(&commands, &s_table, path);
+    } else {
+        code::compile_to_stdout(&commands, &s_table);
+    }
 
     Ok(())
-}
-
-pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
-    for line in contents.lines() {
-        if line.contains(query) {
-            results.push(line);
-        }
-    }
-    results
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn one_result() {
-        let query = "duct";
-        let contents ="\
-Rust:
-safe, fast, productive.
-Pick three.";
-
-    assert_eq!(
-        vec!["safe, fast, productive."],
-        search(query, contents)
-    );
-    }
 }
