@@ -27,13 +27,7 @@ impl Config {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let mut f = File::open(config.filename.clone())?;
-
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)?;
-
     let commands = parser::parse(&config.filename)?;
-
     let mut s_table = SymbolTable::new();
     s_table.map_symbols(&commands);
     if let Some(path) = config.output {
@@ -41,6 +35,5 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     } else {
         code::compile_to_stdout(&commands, &s_table);
     }
-
     Ok(())
 }
