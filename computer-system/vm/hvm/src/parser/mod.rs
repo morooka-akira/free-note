@@ -1,7 +1,7 @@
+use regex::Regex;
+use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
-use std::error::Error;
-use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 pub enum CommandType {
@@ -28,8 +28,13 @@ impl Command {
         let command = words.next().unwrap();
         return match command {
             "push" => CommandType::PUSH,
+            "pop" => CommandType::POP,
+            "label" => CommandType::LABEL,
+            "add" | "sub" | "neg" | "eq" | "gt" | "lt" | "and" | "or" | "not" => {
+                CommandType::ARITHMETIC
+            }
             _ => CommandType::UNKNOWN,
-        }
+        };
     }
 }
 
@@ -54,13 +59,15 @@ pub fn parse_line(line: &str) -> Option<Command> {
     let trim_reg = Regex::new(r"\s+").unwrap().replace_all(line, " ");
     let trim = trim_reg.trim();
     // コメント/空行は除外
-    if trim.starts_with("//") || trim == ""  {
-      return None;
-    } 
+    if trim.starts_with("//") || trim == "" {
+        return None;
+    }
     // 後方コメントも除外
     let comment = Regex::new(r"//.*").unwrap().replace(&trim, "");
     let sanitized = comment;
-    Some(Command { raw: sanitized.to_string() })
+    Some(Command {
+        raw: sanitized.to_string(),
+    })
 }
 
 #[cfg(test)]
@@ -75,6 +82,56 @@ mod tests {
             assert_eq!(
                 parse_line(&"push constant 7").unwrap().command_type(),
                 CommandType::PUSH
+            );
+        }
+
+        #[test]
+        fn test_pop() {
+            assert_eq!(
+                parse_line(&"pop pointer 0").unwrap().command_type(),
+                CommandType::POP
+            );
+        }
+
+        #[test]
+        fn test_arithmetic() {
+            assert_eq!(
+                parse_line(&"  add").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+            assert_eq!(
+                parse_line(&"sub  ").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+            assert_eq!(
+                parse_line(&"neg  ").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+            assert_eq!(
+                parse_line(&"eq  ").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+            assert_eq!(
+                parse_line(&"gt").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+
+            assert_eq!(
+                parse_line(&"lt").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+
+            assert_eq!(
+                parse_line(&"and").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+            assert_eq!(
+                parse_line(&"or").unwrap().command_type(),
+                CommandType::ARITHMETIC
+            );
+            assert_eq!(
+                parse_line(&"not").unwrap().command_type(),
+                CommandType::ARITHMETIC
             );
         }
     }
