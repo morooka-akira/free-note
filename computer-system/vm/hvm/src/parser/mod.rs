@@ -36,6 +36,18 @@ impl Command {
             _ => CommandType::UNKNOWN,
         };
     }
+
+    /// CommandType::RETURN では呼ばないこと
+    pub fn arg1(&self) -> String {
+        let mut words = self.raw.split(" ");
+        return match self.command_type() {
+            CommandType::ARITHMETIC => words.next().unwrap().to_string(),
+            _ => {
+                words.next();
+                words.next().unwrap().to_string()
+            }
+        };
+    }
 }
 
 pub fn parse(filename: &str) -> Result<Vec<Command>, Box<dyn Error>> {
@@ -133,6 +145,25 @@ mod tests {
                 parse_line(&"not").unwrap().command_type(),
                 CommandType::ARITHMETIC
             );
+        }
+    }
+
+    mod arg1 {
+        use super::*;
+
+        #[test]
+        fn test_arithmetic() {
+            assert_eq!(parse_line(&"  add").unwrap().arg1(), "add");
+        }
+
+        #[test]
+        fn test_push() {
+            assert_eq!(parse_line(&"push constant 7").unwrap().arg1(), "constant");
+        }
+
+        #[test]
+        fn test_pop() {
+            assert_eq!(parse_line(&"pop pointer 0").unwrap().arg1(), "pointer");
         }
     }
 
