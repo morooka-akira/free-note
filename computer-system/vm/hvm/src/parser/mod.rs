@@ -48,6 +48,18 @@ impl Command {
             }
         };
     }
+
+    /// CommandType::PUSH
+    /// CommandType::POP
+    /// CommandType::FUNCTION
+    /// CommandType::CALL
+    /// のみ有効
+    pub fn arg2(&self) -> String {
+        let mut words = self.raw.split(" ");
+        words.next();
+        words.next();
+        words.next().unwrap().to_string()
+    }
 }
 
 pub fn parse(filename: &str) -> Result<Vec<Command>, Box<dyn Error>> {
@@ -164,6 +176,20 @@ mod tests {
         #[test]
         fn test_pop() {
             assert_eq!(parse_line(&"pop pointer 0").unwrap().arg1(), "pointer");
+        }
+    }
+
+    mod arg2 {
+        use super::*;
+
+        #[test]
+        fn test_push() {
+            assert_eq!(parse_line(&"push constant 7").unwrap().arg2(), "7");
+        }
+
+        #[test]
+        fn test_pop() {
+            assert_eq!(parse_line(&"pop pointer 0").unwrap().arg2(), "0");
         }
     }
 
