@@ -1,8 +1,8 @@
 use getopts::Matches;
 
 pub struct Config {
-    filename: String,
-    output: Option<String>,
+    pub filename: String,
+    pub output: Option<String>,
 }
 
 impl Config {
