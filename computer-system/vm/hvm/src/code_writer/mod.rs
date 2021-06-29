@@ -30,6 +30,9 @@ fn compile_arithmetic(symbol: &str, table: &mut SymbolTable) -> Vec<String> {
         "add" => compile_add(),
         "sub" => compile_sub(),
         "neg" => compile_neg(),
+        "or" => compile_or(),
+        "and" => compile_and(),
+        "not" => compile_not(),
         "eq" => {
             table.next_label();
             compile_eq(&format!("SKIP{}", table.label_count))
@@ -61,35 +64,95 @@ fn compile_push(segment: &str, index: i32) -> Vec<String> {
     }
 }
 
-fn compile_add<'a>() -> Vec<String> {
-    vec![
-        "@SP".to_string(),
-        "M=M-1".to_string(),
-        "A=M".to_string(),
-        "D=M".to_string(),
-        "A=A-1".to_string(),
-        "M=M+D".to_string(),
-    ]
+/// スタックポインタが指す値を一つ取り出しAレジスタに入れる
+fn pop_commands() -> Vec<String> {
+    vec!["@SP".to_string(), "M=M-1".to_string(), "A=M".to_string()]
+}
+
+fn increment_sp_commands() -> Vec<String> {
+    vec!["@SP".to_string(), "M=M+1".to_string()]
+}
+
+fn compile_add() -> Vec<String> {
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2.yをDに退避
+    commands.push("D=M".to_string());
+    // 3.xを取り出す
+    commands.append(&mut pop_commands());
+    // 4. D = x + y
+    commands.push("M=M+D".to_string());
+    // 5.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
 }
 
 fn compile_sub() -> Vec<String> {
-    vec![
-        "@SP".to_string(),
-        "M=M-1".to_string(),
-        "A=M".to_string(),
-        "D=M".to_string(),
-        "A=A-1".to_string(),
-        "M=M-D".to_string(),
-    ]
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2.yをDに退避
+    commands.push("D=M".to_string());
+    // 3.xを取り出す
+    commands.append(&mut pop_commands());
+    // 4. D = x - y
+    commands.push("M=M-D".to_string());
+    // 5.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
 }
 
 fn compile_neg() -> Vec<String> {
-    vec![
-        "@SP".to_string(),
-        "M=M-1".to_string(),
-        "A=M".to_string(),
-        "D=-D".to_string(),
-    ]
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2. M = - M
+    commands.push("M=-M".to_string());
+    // 3.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
+}
+
+fn compile_or() -> Vec<String> {
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2.yをDに退避
+    commands.push("D=M".to_string());
+    // 3.xを取り出す
+    commands.append(&mut pop_commands());
+    // 4. D = x | Y
+    commands.push("M=D|M".to_string());
+    // 5.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
+}
+
+fn compile_and() -> Vec<String> {
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2.yをDに退避
+    commands.push("D=M".to_string());
+    // 3.xを取り出す
+    commands.append(&mut pop_commands());
+    // 4. D = x & Y
+    commands.push("M=D&M".to_string());
+    // 5.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
+}
+
+fn compile_not() -> Vec<String> {
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2. M = not Y
+    commands.push("M=!M".to_string());
+    // 3.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
 }
 
 fn compile_eq(skip_label: &str) -> Vec<String> {
@@ -106,36 +169,35 @@ fn compile_lt(skip_label: &str) -> Vec<String> {
 
 // 比較演算の出力
 fn compile_comp(skip_label: &str, jump: &str) -> Vec<String> {
-    vec![
-        // 1.yを取り出す
-        "@SP".to_string(),
-        "M=M-1".to_string(),
-        "A=M".to_string(),
-        // 最後の値(y)をDレジスタに保持
-        "D=M".to_string(),
-        // 2.xを取り出す(アドレスy-1)
-        "A=A-1".to_string(),
-        // 3.x - yの結果をDレジスタに
-        "D=M-D".to_string(),
-        // 4.先にTRUE(-1)をスタックに格納しておく
+    let mut commands = vec![];
+    // 1.yを取り出す
+    commands.append(&mut pop_commands());
+    // 2.yをDに退避
+    commands.push("D=M".to_string());
+    // 3.xを取り出す
+    commands.append(&mut pop_commands());
+    // 4. D = x - y
+    commands.push("D=M-D".to_string());
+    commands.append(&mut vec![
+        // 5.先にTRUE(-1)をスタックに格納しておく
         // ※ Falseの場合は後で上書き
         "@SP".to_string(),
         "A=M".to_string(),
         "M=-1".to_string(),
-        // 5.ジャンプ判定
+        // 6.ジャンプ判定
         format!("@{}", skip_label).to_string(),
         format!("D;{}", jump).to_string(),
-        // 6.FALSE(0)をスタックにセット
-        // 5の判定でジャンプしない場合はFALSEとして値が上書きされる
+        // 7.FALSE(0)をスタックにセット
+        // 6の判定でジャンプしない場合はFALSEとして値が上書きされる
         "@SP".to_string(),
         "A=M".to_string(),
         "M=0".to_string(),
-        // 7.ジャンプ先のラベル
+        // 8.ジャンプ先のラベル
         format!("({})", skip_label).to_string(),
-        // 8.スタックポインタを1進めて終了
-        "@SP".to_string(),
-        "M=M+1".to_string(),
-    ]
+    ]);
+    // 9.スタックポインタを1進めて終了
+    commands.append(&mut increment_sp_commands());
+    return commands;
 }
 
 #[cfg(test)]
@@ -159,7 +221,7 @@ mod tests {
         fn test_add() {
             assert_eq!(
                 compile_add(),
-                ["@SP", "M=M-1", "A=M", "D=M", "A=A-1", "M=M+D"]
+                ["@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "M=M+D", "@SP", "M=M+1"]
             );
         }
 
@@ -167,13 +229,16 @@ mod tests {
         fn test_sub() {
             assert_eq!(
                 compile_sub(),
-                ["@SP", "M=M-1", "A=M", "D=M", "A=A-1", "M=M-D"]
+                ["@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "M=M-D", "@SP", "M=M+1"]
             );
         }
 
         #[test]
         fn test_neg() {
-            assert_eq!(compile_neg(), ["@SP", "M=M-1", "A=M", "D=-D"]);
+            assert_eq!(
+                compile_neg(),
+                ["@SP", "M=M-1", "A=M", "M=-M", "@SP", "M=M+1"]
+            );
         }
 
         #[test]
@@ -181,8 +246,8 @@ mod tests {
             assert_eq!(
                 compile_eq(&"SKIP"),
                 [
-                    "@SP", "M=M-1", "A=M", "D=M", "A=A-1", "D=M-D", "@SP", "A=M", "M=-1", "@SKIP",
-                    "D;JEQ", "@SP", "A=M", "M=0", "(SKIP)", "@SP", "M=M+1",
+                    "@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "D=M-D", "@SP", "A=M",
+                    "M=-1", "@SKIP", "D;JEQ", "@SP", "A=M", "M=0", "(SKIP)", "@SP", "M=M+1",
                 ]
             )
         }
@@ -192,8 +257,8 @@ mod tests {
             assert_eq!(
                 compile_gt(&"SKIP"),
                 [
-                    "@SP", "M=M-1", "A=M", "D=M", "A=A-1", "D=M-D", "@SP", "A=M", "M=-1", "@SKIP",
-                    "D;JGT", "@SP", "A=M", "M=0", "(SKIP)", "@SP", "M=M+1",
+                    "@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "D=M-D", "@SP", "A=M",
+                    "M=-1", "@SKIP", "D;JGT", "@SP", "A=M", "M=0", "(SKIP)", "@SP", "M=M+1",
                 ]
             )
         }
@@ -203,9 +268,33 @@ mod tests {
             assert_eq!(
                 compile_lt(&"SKIP"),
                 [
-                    "@SP", "M=M-1", "A=M", "D=M", "A=A-1", "D=M-D", "@SP", "A=M", "M=-1", "@SKIP",
-                    "D;JLT", "@SP", "A=M", "M=0", "(SKIP)", "@SP", "M=M+1",
+                    "@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "D=M-D", "@SP", "A=M",
+                    "M=-1", "@SKIP", "D;JLT", "@SP", "A=M", "M=0", "(SKIP)", "@SP", "M=M+1",
                 ]
+            )
+        }
+
+        #[test]
+        fn test_or() {
+            assert_eq!(
+                compile_or(),
+                ["@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "M=D|M", "@SP", "M=M+1",]
+            )
+        }
+
+        #[test]
+        fn test_and() {
+            assert_eq!(
+                compile_and(),
+                ["@SP", "M=M-1", "A=M", "D=M", "@SP", "M=M-1", "A=M", "M=D&M", "@SP", "M=M+1",]
+            )
+        }
+
+        #[test]
+        fn test_not() {
+            assert_eq!(
+                compile_not(),
+                ["@SP", "M=M-1", "A=M", "M=!M", "@SP", "M=M+1",]
             )
         }
     }
