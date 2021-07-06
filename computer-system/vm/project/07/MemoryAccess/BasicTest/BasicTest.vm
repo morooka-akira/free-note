@@ -8,7 +8,7 @@ push constant 10
 pop local 0
 push constant 21
 push constant 22
-pop argument 1
+pop argument 2
 pop argument 1
 push constant 36
 pop this 6

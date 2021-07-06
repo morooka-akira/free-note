@@ -58,6 +58,9 @@ fn compile_push(segment: &str, index: i32) -> Vec<String> {
         "constant" => compile_push_constants(index),
         "local" => compile_push_local(index),
         "argument" => compile_push_argument(index),
+        "this" => compile_push_this(index),
+        "that" => compile_push_that(index),
+        "temp" => compile_push_temp(index),
         _ => [].to_vec(),
     }
 }
@@ -66,6 +69,9 @@ fn compile_pop(segment: &str, index: i32) -> Vec<String> {
     match segment {
         "local" => compile_pop_local(index),
         "argument" => compile_pop_argument(index),
+        "this" => compile_pop_this(index),
+        "that" => compile_pop_that(index),
+        "temp" => compile_pop_temp(index),
         _ => [].to_vec(),
     }
 }
@@ -90,6 +96,13 @@ fn command_segment_to_a(symbol: &str, index: i32) -> Vec<String> {
     ]
 }
 
+// 指定のレジスタ番号のアドレスをAレジスタ格納する
+fn command_register_to_a(register_number: i32) -> Vec<String> {
+    vec![
+        format!("@R{}", register_number),
+    ]
+}
+
 fn compile_push_constants(index: i32) -> Vec<String> {
     let mut commands = vec![
         format!("@{}", index),
@@ -103,10 +116,18 @@ fn compile_push_constants(index: i32) -> Vec<String> {
     return commands;
 }
 
-fn compile_push_local(index: i32) -> Vec<String> {
+fn compile_push_register(register_number: i32) -> Vec<String> {
+    return compile_push_with_commands(&mut command_register_to_a(register_number));
+}
+
+fn compile_push_segment(symbol: &str, index: i32) -> Vec<String> {
+    return compile_push_with_commands(&mut command_segment_to_a(symbol, index));
+}
+
+fn compile_push_with_commands(target_commands: &mut Vec<String>) -> Vec<String> {
     // 1.ローカル変数の値(base + index)を取り出す
     let mut commands = vec![];
-    commands.append(&mut command_segment_to_a("LCL", index));
+    commands.append(target_commands);
     commands.append(&mut vec![
         "D=M".to_string(),
         // 2.スタックに格納
@@ -117,60 +138,75 @@ fn compile_push_local(index: i32) -> Vec<String> {
     // 3.スタックのポインタをインクリメント
     commands.append(&mut command_increment_sp());
     return commands;
+}
+
+fn compile_pop_with_commands(target_commands: &mut Vec<String>) -> Vec<String> {
+    // 1.ローカル変数の値(base + index)を取り出す
+    let mut commands = vec![];
+    commands.append(target_commands);
+    // AレジスタのアドレスをR13に退避する
+    commands.append(&mut vec![
+        "D=A".to_string(),
+        "@R13".to_string(),
+        "M=D".to_string(),
+    ]);
+    // 2.スタック最上の値を取り出す
+    commands.append(&mut command_pop_to_a());
+    // 3.値をDに退避
+    commands.push("D=M".to_string());
+    // 4. R13のアドレスの指定先にスタック上部の値を格納
+    commands.push("@R13".to_string());
+    commands.push("A=M".to_string());
+    commands.push("M=D".to_string());
+    return commands;
+}
+
+fn compile_pop_segment(symbol: &str, index: i32) -> Vec<String> {
+    return compile_pop_with_commands(&mut command_segment_to_a(symbol, index));
+}
+
+fn compile_pop_register(register_number: i32) -> Vec<String> {
+    return compile_pop_with_commands(&mut command_register_to_a(register_number));
+}
+
+fn compile_push_local(index: i32) -> Vec<String> {
+    compile_push_segment("LCL", index)
 }
 
 fn compile_push_argument(index: i32) -> Vec<String> {
-    // 1.ローカル変数の値(base + index)を取り出す
-    let mut commands = vec![];
-    commands.append(&mut command_segment_to_a("ARG", index));
-    commands.append(&mut vec![
-        "D=M".to_string(),
-        // 2.スタックに格納
-        "@SP".to_string(),
-        "A=M".to_string(),
-        "M=D".to_string(),
-    ]);
-    // 3.スタックのポインタをインクリメント
-    commands.append(&mut command_increment_sp());
-    return commands;
+    compile_push_segment("ARG", index)
+}
+
+fn compile_push_this(index: i32) -> Vec<String> {
+    compile_push_segment("THIS", index)
+}
+
+fn compile_push_that(index: i32) -> Vec<String> {
+    compile_push_segment("THAT", index)
+}
+
+fn compile_push_temp(index: i32) -> Vec<String> {
+    compile_push_register(5 + index)
 }
 
 fn compile_pop_local(index: i32) -> Vec<String> {
-    let mut commands = vec![];
-    // 1.ローカル変数のアドレス(base + index)をR13レジスタに退避する
-    commands.append(&mut command_segment_to_a("LCL", index));
-    commands.append(&mut vec![
-        "D=A".to_string(),
-        "@R13".to_string(),
-        "M=D".to_string(),
-    ]);
-    // 2.スタック最上の値を取り出す
-    commands.append(&mut command_pop_to_a());
-    // 3.値をDに退避
-    commands.push("D=M".to_string());
-    // 4. R13のアドレスの指定先にスタック上部の値を格納
-    commands.push("@R13".to_string());
-    commands.push("M=D".to_string());
-    return commands;
+    compile_pop_segment("LCL", index)
 }
 
 fn compile_pop_argument(index: i32) -> Vec<String> {
-    let mut commands = vec![];
-    // 1.ローカル変数のアドレス(base + index)をR13レジスタに退避する
-    commands.append(&mut command_segment_to_a("ARG", index));
-    commands.append(&mut vec![
-        "D=A".to_string(),
-        "@R13".to_string(),
-        "M=D".to_string(),
-    ]);
-    // 2.スタック最上の値を取り出す
-    commands.append(&mut command_pop_to_a());
-    // 3.値をDに退避
-    commands.push("D=M".to_string());
-    // 4. R13のアドレスの指定先にスタック上部の値を格納
-    commands.push("@R13".to_string());
-    commands.push("M=D".to_string());
-    return commands;
+    compile_pop_segment("ARG", index)
+}
+
+fn compile_pop_this(index: i32) -> Vec<String> {
+    compile_pop_segment("THIS", index)
+}
+
+fn compile_pop_that(index: i32) -> Vec<String> {
+    compile_pop_segment("THAT", index)
+}
+
+fn compile_pop_temp(index: i32) -> Vec<String> {
+    compile_pop_register(5 + index)
 }
 
 fn compile_add() -> Vec<String> {
@@ -329,6 +365,30 @@ mod tests {
                 ["@1", "D=A", "@ARG", "A=D+M", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
             );
         }
+
+        #[test]
+        fn test_compile_push_this() {
+            assert_eq!(
+                compile_push_this(6),
+                ["@6", "D=A", "@THIS", "A=D+M", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
+            );
+        }
+
+        #[test]
+        fn test_compile_push_that() {
+            assert_eq!(
+                compile_push_that(4),
+                ["@4", "D=A", "@THAT", "A=D+M", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
+            );
+        }
+
+        #[test]
+        fn test_compile_push_temp() {
+            assert_eq!(
+                compile_push_temp(6),
+                ["@R11", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
+            );
+        }
     }
 
     mod compile_pop {
@@ -339,7 +399,7 @@ mod tests {
                 compile_pop_local(0),
                 [
                     "@0", "D=A", "@LCL", "A=D+M", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
-                    "D=M", "@R13", "M=D"
+                    "D=M", "@R13", "A=M", "M=D"
                 ]
             );
         }
@@ -350,7 +410,40 @@ mod tests {
                 compile_pop_argument(1),
                 [
                     "@1", "D=A", "@ARG", "A=D+M", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
-                    "D=M", "@R13", "M=D"
+                    "D=M", "@R13","A=M", "M=D"
+                ]
+            );
+        }
+
+        #[test]
+        fn test_compile_pop_this() {
+            assert_eq!(
+                compile_pop_this(3),
+                [
+                    "@3", "D=A", "@THIS", "A=D+M", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
+                    "D=M", "@R13","A=M", "M=D"
+                ]
+            );
+        }
+
+        #[test]
+        fn test_compile_pop_that() {
+            assert_eq!(
+                compile_pop_that(4),
+                [
+                    "@4", "D=A", "@THAT", "A=D+M", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
+                    "D=M", "@R13","A=M", "M=D"
+                ]
+            );
+        }
+
+        #[test]
+        fn test_compile_pop_temp() {
+            assert_eq!(
+                compile_pop_temp(5),
+                [
+                    "@R10", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
+                    "D=M", "@R13",  "A=M","M=D"
                 ]
             );
         }
