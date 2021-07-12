@@ -61,6 +61,7 @@ fn compile_push(segment: &str, index: i32) -> Vec<String> {
         "this" => compile_push_this(index),
         "that" => compile_push_that(index),
         "temp" => compile_push_temp(index),
+        "pointer" => compile_push_pointer(index),
         _ => [].to_vec(),
     }
 }
@@ -72,6 +73,7 @@ fn compile_pop(segment: &str, index: i32) -> Vec<String> {
         "this" => compile_pop_this(index),
         "that" => compile_pop_that(index),
         "temp" => compile_pop_temp(index),
+        "pointer" => compile_pop_pointer(index),
         _ => [].to_vec(),
     }
 }
@@ -185,6 +187,10 @@ fn compile_push_that(index: i32) -> Vec<String> {
     compile_push_segment("THAT", index)
 }
 
+fn compile_push_pointer(index: i32) -> Vec<String> {
+    compile_push_register(3 + index)
+}
+
 fn compile_push_temp(index: i32) -> Vec<String> {
     compile_push_register(5 + index)
 }
@@ -203,6 +209,10 @@ fn compile_pop_this(index: i32) -> Vec<String> {
 
 fn compile_pop_that(index: i32) -> Vec<String> {
     compile_pop_segment("THAT", index)
+}
+
+fn compile_pop_pointer(index: i32) -> Vec<String> {
+    compile_pop_register(3 + index)
 }
 
 fn compile_pop_temp(index: i32) -> Vec<String> {
@@ -389,6 +399,14 @@ mod tests {
                 ["@R11", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
             );
         }
+
+        #[test]
+        fn test_compile_push_pointer() {
+            assert_eq!(
+                compile_push_pointer(1),
+                ["@R4", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
+            );
+        }
     }
 
     mod compile_pop {
@@ -443,6 +461,17 @@ mod tests {
                 compile_pop_temp(5),
                 [
                     "@R10", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
+                    "D=M", "@R13",  "A=M","M=D"
+                ]
+            );
+        }
+
+        #[test]
+        fn test_compile_pop_pointer() {
+            assert_eq!(
+                compile_pop_pointer(2),
+                [
+                    "@R5", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
                     "D=M", "@R13",  "A=M","M=D"
                 ]
             );
