@@ -5,7 +5,7 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> SymbolTable {
-        let mut table = SymbolTable { label_count: 0 };
+        let table = SymbolTable { label_count: 0 };
         table
     }
 

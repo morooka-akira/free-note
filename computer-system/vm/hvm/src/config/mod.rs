@@ -1,5 +1,6 @@
 use getopts::Matches;
 
+#[derive(Debug, Clone)]
 pub struct Config {
     pub filename: String,
     pub output: Option<String>,

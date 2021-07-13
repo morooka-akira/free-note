@@ -1,19 +1,51 @@
 use crate::parser::Command;
 use crate::parser::CommandType;
 use crate::symbol_table::SymbolTable;
+use crate::config::Config;
+use std::path::Path;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 
-pub fn write_to_file(file_name: &str, command_list: Vec<Command>) {}
-pub fn write_to_stdout(command_list: Vec<Command>) {
+pub fn write_to_file(command_list: Vec<Command>, config: &Config) {
+    if let Some(path) = &config.output {
+        let mut table = SymbolTable::new();
+        let mut file = BufWriter::new(File::create(&path).unwrap());
+        let path = Path::new(&config.filename);
+        let name = path.file_name().unwrap().to_str().unwrap().split('.').next();
+        for command in command_list {
+            let code_list = match command.command_type() {
+                CommandType::PUSH => {
+                    let index: i32 = command.arg2().parse().unwrap();
+                    compile_push(&command.arg1(), index, &name.unwrap())
+                }
+                CommandType::POP => {
+                    let index: i32 = command.arg2().parse().unwrap();
+                    compile_pop(&command.arg1(), index, &name.unwrap())
+                }
+                CommandType::ARITHMETIC => {
+                    let sym = command.arg1();
+                    compile_arithmetic(&sym, &mut table)
+                }
+                _ => [].to_vec(),
+            };
+            write!(file, "{}\n", code_list.join("\n")).unwrap();
+        }
+    }
+}
+
+pub fn write_to_stdout(command_list: Vec<Command>, config: &Config) {
     let mut table = SymbolTable::new();
+    let path = Path::new(&config.filename);
+    let name = path.file_name().unwrap().to_str().unwrap().split('.').next();
     for command in command_list {
         let code_list = match command.command_type() {
             CommandType::PUSH => {
                 let index: i32 = command.arg2().parse().unwrap();
-                compile_push(&command.arg1(), index)
+                compile_push(&command.arg1(), index, &name.unwrap())
             }
             CommandType::POP => {
                 let index: i32 = command.arg2().parse().unwrap();
-                compile_pop(&command.arg1(), index)
+                compile_pop(&command.arg1(), index, &name.unwrap())
             }
             CommandType::ARITHMETIC => {
                 let sym = command.arg1();
@@ -23,10 +55,6 @@ pub fn write_to_stdout(command_list: Vec<Command>) {
         };
         println!("{}", code_list.join("\n"));
     }
-}
-
-fn compile(command: Command) -> String {
-    return "".to_string();
 }
 
 fn compile_arithmetic(symbol: &str, table: &mut SymbolTable) -> Vec<String> {
@@ -53,7 +81,7 @@ fn compile_arithmetic(symbol: &str, table: &mut SymbolTable) -> Vec<String> {
     }
 }
 
-fn compile_push(segment: &str, index: i32) -> Vec<String> {
+fn compile_push(segment: &str, index: i32, filename: &str) -> Vec<String> {
     match segment {
         "constant" => compile_push_constants(index),
         "local" => compile_push_local(index),
@@ -62,11 +90,12 @@ fn compile_push(segment: &str, index: i32) -> Vec<String> {
         "that" => compile_push_that(index),
         "temp" => compile_push_temp(index),
         "pointer" => compile_push_pointer(index),
+        "static" => compile_push_static(index, filename),
         _ => [].to_vec(),
     }
 }
 
-fn compile_pop(segment: &str, index: i32) -> Vec<String> {
+fn compile_pop(segment: &str, index: i32, filename: &str) -> Vec<String> {
     match segment {
         "local" => compile_pop_local(index),
         "argument" => compile_pop_argument(index),
@@ -74,6 +103,7 @@ fn compile_pop(segment: &str, index: i32) -> Vec<String> {
         "that" => compile_pop_that(index),
         "temp" => compile_pop_temp(index),
         "pointer" => compile_pop_pointer(index),
+        "static" => compile_pop_static(index, filename),
         _ => [].to_vec(),
     }
 }
@@ -104,6 +134,9 @@ fn command_register_to_a(register_number: i32) -> Vec<String> {
         format!("@R{}", register_number),
     ]
 }
+
+
+/* --------------------------- push ------------------------------- */
 
 fn compile_push_constants(index: i32) -> Vec<String> {
     let mut commands = vec![
@@ -142,6 +175,38 @@ fn compile_push_with_commands(target_commands: &mut Vec<String>) -> Vec<String> 
     return commands;
 }
 
+fn compile_push_local(index: i32) -> Vec<String> {
+    compile_push_segment("LCL", index)
+}
+
+fn compile_push_argument(index: i32) -> Vec<String> {
+    compile_push_segment("ARG", index)
+}
+
+fn compile_push_this(index: i32) -> Vec<String> {
+    compile_push_segment("THIS", index)
+}
+
+fn compile_push_that(index: i32) -> Vec<String> {
+    compile_push_segment("THAT", index)
+}
+
+fn compile_push_pointer(index: i32) -> Vec<String> {
+    compile_push_register(3 + index)
+}
+
+fn compile_push_temp(index: i32) -> Vec<String> {
+    compile_push_register(5 + index)
+}
+
+fn compile_push_static(index: i32, filename: &str) -> Vec<String> {
+    return compile_push_with_commands(&mut vec![
+        format!("@{}.{}", filename, index),
+    ]);
+}
+
+/* --------------------------- pop ------------------------------- */
+
 fn compile_pop_with_commands(target_commands: &mut Vec<String>) -> Vec<String> {
     // 1.ローカル変数の値(base + index)を取り出す
     let mut commands = vec![];
@@ -171,29 +236,6 @@ fn compile_pop_register(register_number: i32) -> Vec<String> {
     return compile_pop_with_commands(&mut command_register_to_a(register_number));
 }
 
-fn compile_push_local(index: i32) -> Vec<String> {
-    compile_push_segment("LCL", index)
-}
-
-fn compile_push_argument(index: i32) -> Vec<String> {
-    compile_push_segment("ARG", index)
-}
-
-fn compile_push_this(index: i32) -> Vec<String> {
-    compile_push_segment("THIS", index)
-}
-
-fn compile_push_that(index: i32) -> Vec<String> {
-    compile_push_segment("THAT", index)
-}
-
-fn compile_push_pointer(index: i32) -> Vec<String> {
-    compile_push_register(3 + index)
-}
-
-fn compile_push_temp(index: i32) -> Vec<String> {
-    compile_push_register(5 + index)
-}
 
 fn compile_pop_local(index: i32) -> Vec<String> {
     compile_pop_segment("LCL", index)
@@ -213,6 +255,12 @@ fn compile_pop_that(index: i32) -> Vec<String> {
 
 fn compile_pop_pointer(index: i32) -> Vec<String> {
     compile_pop_register(3 + index)
+}
+
+fn compile_pop_static(index: i32, filename: &str) -> Vec<String> {
+    return compile_pop_with_commands(&mut vec![
+        format!("@{}.{}", filename, index),
+    ]);
 }
 
 fn compile_pop_temp(index: i32) -> Vec<String> {
@@ -355,7 +403,7 @@ mod tests {
         #[test]
         fn test_compile_push_constant() {
             assert_eq!(
-                compile_push(&"constant", 7),
+                compile_push(&"constant", 7, "Test"),
                 ["@7", "D=A", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
             );
         }
@@ -363,7 +411,7 @@ mod tests {
         #[test]
         fn test_compile_push_local() {
             assert_eq!(
-                compile_push(&"local", 0),
+                compile_push(&"local", 0, "Test"),
                 ["@0", "D=A", "@LCL", "A=D+M", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
             );
         }
@@ -405,6 +453,14 @@ mod tests {
             assert_eq!(
                 compile_push_pointer(1),
                 ["@R4", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
+            );
+        }
+
+        #[test]
+        fn test_compile_push_static() {
+            assert_eq!(
+                compile_push_static(3, "Test"),
+                ["@Test.3", "D=M", "@SP", "A=M", "M=D", "@SP", "M=M+1"]
             );
         }
     }
@@ -472,6 +528,17 @@ mod tests {
                 compile_pop_pointer(2),
                 [
                     "@R5", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
+                    "D=M", "@R13",  "A=M","M=D"
+                ]
+            );
+        }
+
+        #[test]
+        fn test_compile_pop_static() {
+            assert_eq!(
+                compile_pop_static(1, "Test"),
+                [
+                    "@Test.1", "D=A", "@R13", "M=D", "@SP", "M=M-1", "A=M",
                     "D=M", "@R13",  "A=M","M=D"
                 ]
             );
