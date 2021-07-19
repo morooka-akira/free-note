@@ -30,6 +30,11 @@ impl Command {
             "push" => CommandType::PUSH,
             "pop" => CommandType::POP,
             "label" => CommandType::LABEL,
+            "goto" => CommandType::GOTO,
+            "if-goto" => CommandType::IF,
+            "return" => CommandType::RETURN,
+            "function" => CommandType::FUNCTION,
+            "call" => CommandType::CALL,
             "add" | "sub" | "neg" | "eq" | "gt" | "lt" | "and" | "or" | "not" => {
                 CommandType::ARITHMETIC
             }
@@ -156,6 +161,54 @@ mod tests {
             assert_eq!(
                 parse_line(&"not").unwrap().command_type(),
                 CommandType::ARITHMETIC
+            );
+        }
+
+        #[test]
+        fn test_label() {
+            assert_eq!(
+                parse_line(&"label LOOP_START").unwrap().command_type(),
+                CommandType::LABEL
+            );
+        }
+
+        #[test]
+        fn test_goto() {
+            assert_eq!(
+                parse_line(&"goto LOOP_START").unwrap().command_type(),
+                CommandType::GOTO
+            );
+        }
+
+        #[test]
+        fn test_if() {
+            assert_eq!(
+                parse_line(&"if-goto COMPUTE_ELEMENT").unwrap().command_type(),
+                CommandType::IF
+            );
+        }
+
+        #[test]
+        fn test_function() {
+            assert_eq!(
+                parse_line(&"function SimpleFunction.test 2").unwrap().command_type(),
+                CommandType::FUNCTION
+            );
+        }
+
+        #[test]
+        fn test_return() {
+            assert_eq!(
+                parse_line(&"return ").unwrap().command_type(),
+                CommandType::RETURN
+            );
+        }
+
+        #[test]
+        fn test_call() {
+            assert_eq!(
+                parse_line(&"call Main.fibonacci 1").unwrap().command_type(),
+                CommandType::CALL
             );
         }
     }
