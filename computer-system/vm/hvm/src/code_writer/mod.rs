@@ -8,32 +8,18 @@ use std::io::{BufWriter, Write};
 
 pub fn write_to_file(command_list: Vec<Command>, config: &Config) {
     if let Some(path) = &config.output {
-        let mut table = SymbolTable::new();
         let mut file = BufWriter::new(File::create(&path).unwrap());
-        let path = Path::new(&config.filename);
-        let name = path.file_name().unwrap().to_str().unwrap().split('.').next();
-        for command in command_list {
-            let code_list = match command.command_type() {
-                CommandType::PUSH => {
-                    let index: i32 = command.arg2().parse().unwrap();
-                    compile_push(&command.arg1(), index, &name.unwrap())
-                }
-                CommandType::POP => {
-                    let index: i32 = command.arg2().parse().unwrap();
-                    compile_pop(&command.arg1(), index, &name.unwrap())
-                }
-                CommandType::ARITHMETIC => {
-                    let sym = command.arg1();
-                    compile_arithmetic(&sym, &mut table)
-                }
-                _ => [].to_vec(),
-            };
-            write!(file, "{}\n", code_list.join("\n")).unwrap();
-        }
+        let mut write_process = |com| write!(file, "{}\n", com).unwrap();
+        write_command(command_list, config, &mut write_process);
     }
 }
 
 pub fn write_to_stdout(command_list: Vec<Command>, config: &Config) {
+    let mut write_process = |com| println!("{}", com);
+    write_command(command_list, config, &mut write_process);
+}
+
+fn write_command<F>(command_list: Vec<Command>, config: &Config, process: &mut F) where F: FnMut(String) {
     let mut table = SymbolTable::new();
     let path = Path::new(&config.filename);
     let name = path.file_name().unwrap().to_str().unwrap().split('.').next();
@@ -51,9 +37,16 @@ pub fn write_to_stdout(command_list: Vec<Command>, config: &Config) {
                 let sym = command.arg1();
                 compile_arithmetic(&sym, &mut table)
             }
+            CommandType::LABEL => {
+                let sym = command.arg1();
+                compile_label("null", &sym)
+            }
+            CommandType::IF => {
+                compile_if("null", &command.arg1())
+            }
             _ => [].to_vec(),
         };
-        println!("{}", code_list.join("\n"));
+        process(code_list.join("\n"));
     }
 }
 
@@ -79,6 +72,22 @@ fn compile_arithmetic(symbol: &str, table: &mut SymbolTable) -> Vec<String> {
         }
         _ => [].to_vec(),
     }
+}
+
+fn compile_label(fun_name: &str, symbol: &str) -> Vec<String> {
+    [format!("({}${})",fun_name, symbol)].to_vec()
+}
+
+fn compile_if(fun_name: &str, symbol: &str) -> Vec<String> {
+    let mut commands = vec![];
+    // 1.スタック最上の値を取り出す
+    commands.append(&mut command_pop_to_a());
+    // 2.値をDに退避
+    commands.push("D=M".to_string());
+    // 3.ジャンプ命令
+    commands.push(format!("@{}${}", fun_name, symbol));
+    commands.push("D;JNE".to_string());
+    return commands
 }
 
 fn compile_push(segment: &str, index: i32, filename: &str) -> Vec<String> {
@@ -625,6 +634,28 @@ mod tests {
             assert_eq!(
                 compile_not(),
                 ["@SP", "M=M-1", "A=M", "M=!M", "@SP", "M=M+1",]
+            )
+        }
+    }
+
+    mod compile_label {
+        use super::*;
+        #[test]
+        fn test_no_function() {
+            assert_eq!(
+                compile_label("null", "LOOP"),
+                ["(null$LOOP)",]
+            )
+        }
+    }
+
+    mod compile_if {
+        use super::*;
+        #[test]
+        fn test_if_goto() {
+            assert_eq!(
+                compile_if("null", "LOOP"),
+                ["@SP", "M=M-1", "A=M", "D=M", "@null$LOOP", "D;JNE"]
             )
         }
     }
