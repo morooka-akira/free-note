@@ -44,6 +44,9 @@ fn write_command<F>(command_list: Vec<Command>, config: &Config, process: &mut F
             CommandType::IF => {
                 compile_if("null", &command.arg1())
             }
+            CommandType::GOTO => {
+                compile_goto("null", &command.arg1())
+            }
             _ => [].to_vec(),
         };
         process(code_list.join("\n"));
@@ -87,6 +90,14 @@ fn compile_if(fun_name: &str, symbol: &str) -> Vec<String> {
     // 3.ジャンプ命令
     commands.push(format!("@{}${}", fun_name, symbol));
     commands.push("D;JNE".to_string());
+    return commands
+}
+
+fn compile_goto(fun_name: &str, symbol: &str) -> Vec<String> {
+    let mut commands = vec![];
+    // 3.ジャンプ命令
+    commands.push(format!("@{}${}", fun_name, symbol));
+    commands.push("0;JMP".to_string());
     return commands
 }
 
@@ -656,6 +667,17 @@ mod tests {
             assert_eq!(
                 compile_if("null", "LOOP"),
                 ["@SP", "M=M-1", "A=M", "D=M", "@null$LOOP", "D;JNE"]
+            )
+        }
+    }
+
+    mod compile_goto {
+        use super::*;
+        #[test]
+        fn test_goto() {
+            assert_eq!(
+                compile_goto("null", "END"),
+                ["@null$END", "0;JMP"]
             )
         }
     }

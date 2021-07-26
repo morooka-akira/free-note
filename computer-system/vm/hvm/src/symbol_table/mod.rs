@@ -18,7 +18,6 @@ impl SymbolTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::*;
 
     #[test]
     fn test_next_label() {
