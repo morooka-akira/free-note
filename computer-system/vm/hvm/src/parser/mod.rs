@@ -183,7 +183,9 @@ mod tests {
         #[test]
         fn test_if() {
             assert_eq!(
-                parse_line(&"if-goto COMPUTE_ELEMENT").unwrap().command_type(),
+                parse_line(&"if-goto COMPUTE_ELEMENT")
+                    .unwrap()
+                    .command_type(),
                 CommandType::IF
             );
         }
@@ -191,7 +193,9 @@ mod tests {
         #[test]
         fn test_function() {
             assert_eq!(
-                parse_line(&"function SimpleFunction.test 2").unwrap().command_type(),
+                parse_line(&"function SimpleFunction.test 2")
+                    .unwrap()
+                    .command_type(),
                 CommandType::FUNCTION
             );
         }
