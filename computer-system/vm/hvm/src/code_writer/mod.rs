@@ -56,6 +56,7 @@ where
                 let arg_cnt: i32 = command.arg2().parse().unwrap();
                 compile_function(&command.arg1(), arg_cnt)
             }
+            CommandType::RETURN => compile_return(),
             _ => [].to_vec(),
         };
         process(code_list.join("\n"));
@@ -122,6 +123,71 @@ fn compile_function(fun_name: &str, arg_cnt: i32) -> Vec<String> {
         commands.append(&mut compile_pop_local(n));
     }
     return commands;
+}
+
+fn compile_return() -> Vec<String> {
+    let mut commands = vec![];
+    // 1.LCLは関数フレームの先頭のためアドレス起点として保持しておく(R13)
+    commands.push("@LCL".to_string());
+    commands.push("D=M".to_string());
+    commands.push("@R13".to_string());
+    commands.push("M=D".to_string());
+    // 2.リターンアドレス(LCL - 5)の取得
+    // R14に保持
+    commands.push("@5".to_string());
+    commands.push("D=A".to_string());
+    commands.push("@R13".to_string());
+    commands.push("D=M-D".to_string());
+    commands.push("A=D".to_string());
+    commands.push("D=M".to_string());
+    commands.push("@R14".to_string());
+    commands.push("M=D".to_string());
+
+    // 3.戻り値の格納
+    // スタックTOPの値をARGに入れる(ARGがスタックの最後の値に復元されるため)
+    commands.append(&mut command_pop_to_a());
+    commands.push("D=M".to_string());
+    commands.push("@ARG".to_string());
+    commands.push("A=M".to_string());
+    commands.push("M=D".to_string());
+
+    // 3.SPの復元
+    // ARGに戻り値を入れたのでSPは+1のアドレスになる
+    commands.push("A=A+1".to_string());
+    commands.push("D=A".to_string());
+    commands.push("@SP".to_string());
+    commands.push("M=D".to_string());
+
+    // 4. THAT, THIS, ARG, LCLの復元
+    // LCLの上にはTHAT, THIS, ARG, LCLの順番で呼び出し前の値が保存されているため復元する
+    commands.append(&mut command_restore_segment("R13", 1, "THAT"));
+
+    commands.append(&mut command_restore_segment("R13", 2, "THIS"));
+
+    commands.append(&mut command_restore_segment("R13", 3, "ARG"));
+
+    commands.append(&mut command_restore_segment("R13", 4, "LCL"));
+
+    // 5. リターンアドレスにジャンプ
+    commands.push("@R14".to_string());
+    commands.push("A=M".to_string());
+    commands.push("0;JMP".to_string());
+    return commands;
+}
+
+// baseシンボルから-indexした値でsegmentの指定アドレスを書き換える
+// アドレスの復元
+fn command_restore_segment(base_symbol: &str, index: i32, segment_symbol: &str) -> Vec<String> {
+    vec![
+        format!("@{}", base_symbol),
+        "D=M".to_string(),
+        format!("@{}", index),
+        "D=D-A".to_string(),
+        "A=D".to_string(),
+        "D=M".to_string(),
+        format!("@{}", segment_symbol),
+        "M=D".to_string(),
+    ]
 }
 
 fn compile_push(segment: &str, index: i32, filename: &str) -> Vec<String> {
@@ -738,6 +804,24 @@ mod tests {
                     "@R13",
                     "A=M",
                     "M=D",
+                ]
+            )
+        }
+    }
+
+    mod compile_return {
+        use super::*;
+        #[test]
+        fn test_return() {
+            assert_eq!(
+                compile_return(),
+                [
+                    "@LCL", "D=M", "@R13", "M=D", "@5", "D=A", "@R13", "D=M-D", "A=D", "D=M",
+                    "@R14", "M=D", "@SP", "M=M-1", "A=M", "D=M", "@ARG", "A=M", "M=D", "A=A+1",
+                    "D=A", "@SP", "M=D", "@R13", "D=M", "@1", "D=D-A", "A=D", "D=M", "@THAT",
+                    "M=D", "@R13", "D=M", "@2", "D=D-A", "A=D", "D=M", "@THIS", "M=D", "@R13",
+                    "D=M", "@3", "D=D-A", "A=D", "D=M", "@ARG", "M=D", "@R13", "D=M", "@4",
+                    "D=D-A", "A=D", "D=M", "@LCL", "M=D", "@R14", "A=M", "0;JMP"
                 ]
             )
         }
