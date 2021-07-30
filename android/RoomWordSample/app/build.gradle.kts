@@ -1,10 +1,12 @@
 import dependencies.Deps
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     kotlin("kapt")
 }
-//apply(mapOf("plugin" to "kotlin-kapt"))
+apply(mapOf("plugin" to "kotlin-kapt"))
+apply(mapOf("plugin" to "dagger.hilt.android.plugin"))
 
 android {
     compileSdk = 30
@@ -80,4 +82,8 @@ dependencies {
         )
     }
     androidTestImplementation(Deps.androidxJunit)
+
+    // hilt
+    implementation(Deps.hiltAndroid)
+    kapt(Deps.hiltAndroidCompiler)
 }

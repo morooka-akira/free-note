@@ -19,4 +19,12 @@ object Deps {
     const val coreTesting = "androidx.arch.core:core-testing:${Versions.coreTesting}"
     const val espresso = "androidx.test.espresso:espresso-core:${Versions.espresso}"
     const val androidxJunit = "androidx.test.ext:junit:${Versions.androidxJunit}"
+    const val hiltAndroid = "com.google.dagger:hilt-android:${Versions.hilt}"
+    const val hiltAndroidCompiler = "com.google.dagger:hilt-android-compiler:${Versions.hilt}"
+
+    object GradlePlugin {
+        const val gradle = "com.android.tools.build:gradle:${Versions.gradle}"
+        const val kotlin = "org.jetbrains.kotlin:kotlin-gradle-plugin:${Versions.kotlin}"
+        const val hilt = "com.google.dagger:hilt-android-gradle-plugin:${Versions.hilt}"
+    }
 }

@@ -14,4 +14,6 @@ object Versions {
     const val coreTesting = "2.1.0"
     const val espresso = "3.4.0"
     const val androidxJunit = "1.1.3"
+    const val hilt = "2.28-alpha"
+    const val gradle = "7.0.0"
 }
