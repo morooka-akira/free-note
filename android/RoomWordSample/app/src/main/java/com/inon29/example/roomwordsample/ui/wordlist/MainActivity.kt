@@ -14,12 +14,20 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.inon29.example.roomwordsample.R
 import com.inon29.example.roomwordsample.WordsApplication
 import com.inon29.example.roomwordsample.data.db.entity.Word
+import com.inon29.example.roomwordsample.data.repository.WordRepository
 import com.inon29.example.roomwordsample.ui.newword.NewWordActivity
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject
+    lateinit var repository: WordRepository
+
     private val newWordActivityRequestCode = 1
     private val wordViewModel: WordViewModel by viewModels {
-       WordViewModelFactory((application as WordsApplication).repository)
+        Log.d("MainActivity", repository.toString())
+        WordViewModelFactory(repository)
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

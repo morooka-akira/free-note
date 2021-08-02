@@ -4,8 +4,9 @@ import androidx.annotation.WorkerThread
 import com.inon29.example.roomwordsample.data.db.dao.WordDao
 import com.inon29.example.roomwordsample.data.db.entity.Word
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class WordRepository(private val wordDao: WordDao) {
+class WordRepository @Inject constructor(private val wordDao: WordDao) {
 
     val allWords: Flow<List<Word>> = wordDao.getAlphabetizedWords()
 

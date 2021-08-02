@@ -3,10 +3,12 @@ import dependencies.Deps
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("kotlin-kapt")
+    id("dagger.hilt.android.plugin")
     kotlin("kapt")
 }
-apply(mapOf("plugin" to "kotlin-kapt"))
-apply(mapOf("plugin" to "dagger.hilt.android.plugin"))
+//apply(mapOf("plugin" to "kotlin-kapt"))
+//apply(mapOf("plugin" to "dagger.hilt.android.plugin"))
 
 android {
     compileSdk = 30
