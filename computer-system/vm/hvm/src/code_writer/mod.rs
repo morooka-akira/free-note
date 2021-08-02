@@ -32,6 +32,7 @@ where
         .unwrap()
         .split('.')
         .next();
+    let mut fun_name: String = "null".to_string();
     for command in command_list {
         let code_list = match command.command_type() {
             CommandType::PUSH => {
@@ -48,15 +49,19 @@ where
             }
             CommandType::LABEL => {
                 let sym = command.arg1();
-                compile_label("null", &sym)
+                compile_label(&fun_name, &sym)
             }
-            CommandType::IF => compile_if("null", &command.arg1()),
-            CommandType::GOTO => compile_goto("null", &command.arg1()),
+            CommandType::IF => compile_if(&fun_name, &command.arg1()),
+            CommandType::GOTO => compile_goto(&fun_name, &command.arg1()),
             CommandType::FUNCTION => {
+                let fun: String = command.arg1();
+                fun_name = fun.to_string();
                 let arg_cnt: i32 = command.arg2().parse().unwrap();
-                compile_function(&command.arg1(), arg_cnt)
+                compile_function(&fun, arg_cnt)
             }
-            CommandType::RETURN => compile_return(),
+            CommandType::RETURN => { 
+                compile_return()
+            },
             _ => [].to_vec(),
         };
         process(code_list.join("\n"));
