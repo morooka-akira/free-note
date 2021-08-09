@@ -33,6 +33,9 @@ where
         .split('.')
         .next();
     let mut fun_name: String = "null".to_string();
+    let code = compile_bootstrap();
+    process(code.join("\n"));
+    let mut call_cnt: i32 = 0;
     for command in command_list {
         let code_list = match command.command_type() {
             CommandType::PUSH => {
@@ -53,19 +56,37 @@ where
             }
             CommandType::IF => compile_if(&fun_name, &command.arg1()),
             CommandType::GOTO => compile_goto(&fun_name, &command.arg1()),
+            CommandType::CALL => {
+                let fun: String = command.arg1();
+                fun_name = fun.to_string();
+                let arg_cnt: i32 = command.arg2().parse().unwrap();
+                call_cnt += 1;
+                compile_call(&fun, arg_cnt, call_cnt)
+            }
             CommandType::FUNCTION => {
                 let fun: String = command.arg1();
                 fun_name = fun.to_string();
                 let arg_cnt: i32 = command.arg2().parse().unwrap();
                 compile_function(&fun, arg_cnt)
             }
-            CommandType::RETURN => { 
-                compile_return()
-            },
+            CommandType::RETURN => compile_return(),
             _ => [].to_vec(),
         };
         process(code_list.join("\n"));
     }
+}
+
+// // ブートストラップコード
+fn compile_bootstrap() -> Vec<String> {
+    let mut commands = vec![];
+    // 1.SPをRAM[256]に設定する
+    commands.push("@256".to_string());
+    commands.push("D=A".to_string());
+    commands.push("@SP".to_string());
+    commands.push("M=A".to_string());
+    // 2. Sys.initを呼び出す
+    commands.append(&mut compile_call(&"Sys.init", 0, 0));
+    return commands;
 }
 
 fn compile_arithmetic(symbol: &str, table: &mut SymbolTable) -> Vec<String> {
@@ -113,6 +134,43 @@ fn compile_goto(fun_name: &str, symbol: &str) -> Vec<String> {
     // ジャンプ命令
     commands.push(format!("@{}${}", fun_name, symbol));
     commands.push("0;JMP".to_string());
+    return commands;
+}
+
+// call_cnt: 同関数が複数回呼ばれた時のために関数全体のコール回数をシンボルに付与する
+fn compile_call(fun_name: &str, arg_cnt: i32, call_cnt: i32) -> Vec<String> {
+    let mut commands = vec![];
+    let ret_address = format!("CALL${}${}", fun_name, call_cnt);
+
+    // リターンアドレスをスタックに格納する
+    commands.append(&mut compile_push_symbol(&ret_address));
+    // LCL, ARG, THIS, THAT　を退避
+    commands.append(&mut compile_push_symbol("LCL"));
+    commands.append(&mut compile_push_symbol("ARG"));
+    commands.append(&mut compile_push_symbol("THIS"));
+    commands.append(&mut compile_push_symbol("THAT"));
+    // ARGを変更
+    // NOTE: callはargsをスタックに詰めたあと実行されるため今退避した5つのシンボル
+    // (return address, LCL, ARG, THIS, THAT)
+    // プラス 引数の数を今のSPから引いたアドレスがARGになる
+    commands.push("@SP".to_string());
+    commands.push("D=M".to_string());
+    commands.push("@5".to_string());
+    commands.push("D=D-A".to_string());
+    commands.push(format!("@{}", arg_cnt));
+    commands.push("D=D-A".to_string());
+    commands.push("@ARG".to_string());
+    commands.push("M=D".to_string());
+    // LCL(ローカル変数)を現在のSPにする
+    commands.push("@SP".to_string());
+    commands.push("D=M".to_string());
+    commands.push("@LCL".to_string());
+    commands.push("M=D".to_string());
+    // 関数のラベルにジャンプ
+    commands.push(format!("@{}", fun_name));
+    commands.push("0;JMP".to_string());
+    // 関数からのリターンのためにリターンアドレスのラベルを宣言
+    commands.push(format!("({})", ret_address));
     return commands;
 }
 
@@ -252,6 +310,20 @@ fn command_register_to_a(register_number: i32) -> Vec<String> {
 fn compile_push_constants(index: i32) -> Vec<String> {
     let mut commands = vec![
         format!("@{}", index),
+        "D=A".to_string(),
+        "@SP".to_string(),
+        "A=M".to_string(),
+        "M=D".to_string(),
+    ];
+    // 3.スタックのポインタをインクリメント
+    commands.append(&mut command_increment_sp());
+    return commands;
+}
+
+// シンボルのアドレスをスタックに退避する
+fn compile_push_symbol(symbol: &str) -> Vec<String> {
+    let mut commands = vec![
+        format!("@{}", symbol),
         "D=A".to_string(),
         "@SP".to_string(),
         "A=M".to_string(),
