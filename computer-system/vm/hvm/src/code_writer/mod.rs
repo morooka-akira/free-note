@@ -83,7 +83,7 @@ fn compile_bootstrap() -> Vec<String> {
     commands.push("@256".to_string());
     commands.push("D=A".to_string());
     commands.push("@SP".to_string());
-    commands.push("M=A".to_string());
+    commands.push("M=D".to_string());
     // 2. Sys.initを呼び出す
     commands.append(&mut compile_call(&"Sys.init", 0, 0));
     return commands;
@@ -143,7 +143,13 @@ fn compile_call(fun_name: &str, arg_cnt: i32, call_cnt: i32) -> Vec<String> {
     let ret_address = format!("CALL${}${}", fun_name, call_cnt);
 
     // リターンアドレスをスタックに格納する
-    commands.append(&mut compile_push_symbol(&ret_address));
+    commands.append(&mut vec![
+        format!("@{}", ret_address),
+        "D=A".to_string(),
+        "@SP".to_string(),
+        "A=M".to_string(),
+        "M=D".to_string(),
+    ]);
     // LCL, ARG, THIS, THAT　を退避
     commands.append(&mut compile_push_symbol("LCL"));
     commands.append(&mut compile_push_symbol("ARG"));
@@ -324,14 +330,8 @@ fn compile_push_constants(index: i32) -> Vec<String> {
 fn compile_push_symbol(symbol: &str) -> Vec<String> {
     let mut commands = vec![
         format!("@{}", symbol),
-        "D=A".to_string(),
-        "@SP".to_string(),
-        "A=M".to_string(),
-        "M=D".to_string(),
     ];
-    // 3.スタックのポインタをインクリメント
-    commands.append(&mut command_increment_sp());
-    return commands;
+    return compile_push_with_commands(&mut commands);
 }
 
 fn compile_push_register(register_number: i32) -> Vec<String> {
