@@ -141,7 +141,6 @@ fn compile_goto(fun_name: &str, symbol: &str) -> Vec<String> {
 fn compile_call(fun_name: &str, arg_cnt: i32, call_cnt: i32) -> Vec<String> {
     let mut commands = vec![];
     let ret_address = format!("CALL${}${}", fun_name, call_cnt);
-
     // リターンアドレスをスタックに格納する
     commands.append(&mut vec![
         format!("@{}", ret_address),
@@ -150,6 +149,7 @@ fn compile_call(fun_name: &str, arg_cnt: i32, call_cnt: i32) -> Vec<String> {
         "A=M".to_string(),
         "M=D".to_string(),
     ]);
+    commands.append(&mut command_increment_sp());
     // LCL, ARG, THIS, THAT　を退避
     commands.append(&mut compile_push_symbol("LCL"));
     commands.append(&mut compile_push_symbol("ARG"));
@@ -328,9 +328,7 @@ fn compile_push_constants(index: i32) -> Vec<String> {
 
 // シンボルのアドレスをスタックに退避する
 fn compile_push_symbol(symbol: &str) -> Vec<String> {
-    let mut commands = vec![
-        format!("@{}", symbol),
-    ];
+    let mut commands = vec![format!("@{}", symbol)];
     return compile_push_with_commands(&mut commands);
 }
 
@@ -899,6 +897,134 @@ mod tests {
                     "M=D", "@R13", "D=M", "@2", "D=D-A", "A=D", "D=M", "@THIS", "M=D", "@R13",
                     "D=M", "@3", "D=D-A", "A=D", "D=M", "@ARG", "M=D", "@R13", "D=M", "@4",
                     "D=D-A", "A=D", "D=M", "@LCL", "M=D", "@R14", "A=M", "0;JMP"
+                ]
+            )
+        }
+    }
+
+    mod compile_call {
+        use super::*;
+        #[test]
+        fn test_call() {
+            assert_eq!(
+                compile_call(&"Sys.init", 0, 0),
+                [
+                    "@CALL$Sys.init$0",
+                    "D=A",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@LCL",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@ARG",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@THIS",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@THAT",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@SP",
+                    "D=M",
+                    "@5",
+                    "D=D-A",
+                    "@0",
+                    "D=D-A",
+                    "@ARG",
+                    "M=D",
+                    "@SP",
+                    "D=M",
+                    "@LCL",
+                    "M=D",
+                    "@Sys.init",
+                    "0;JMP",
+                    "(CALL$Sys.init$0)"
+                ]
+            )
+        }
+    }
+
+    mod compile_bootstrap {
+        use super::*;
+        #[test]
+        fn test_bootstrap() {
+            assert_eq!(
+                compile_bootstrap(),
+                [
+                    "@256",
+                    "D=A",
+                    "@SP",
+                    "M=D",
+                    "@CALL$Sys.init$0",
+                    "D=A",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@LCL",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@ARG",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@THIS",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@THAT",
+                    "D=M",
+                    "@SP",
+                    "A=M",
+                    "M=D",
+                    "@SP",
+                    "M=M+1",
+                    "@SP",
+                    "D=M",
+                    "@5",
+                    "D=D-A",
+                    "@0",
+                    "D=D-A",
+                    "@ARG",
+                    "M=D",
+                    "@SP",
+                    "D=M",
+                    "@LCL",
+                    "M=D",
+                    "@Sys.init",
+                    "0;JMP",
+                    "(CALL$Sys.init$0)"
                 ]
             )
         }
