@@ -1,4 +1,3 @@
-use crate::config::Config;
 use crate::parser::Command;
 use crate::parser::CommandType;
 use crate::symbol_table::SymbolTable;
@@ -6,25 +5,22 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-pub fn write_to_file(command_list: Vec<Command>, config: &Config) {
-    if let Some(path) = &config.output {
-        let mut file = BufWriter::new(File::create(&path).unwrap());
-        let mut write_process = |com| write!(file, "{}\n", com).unwrap();
-        write_command(command_list, config, &mut write_process);
-    }
+pub fn write_to_file(command_list: Vec<Command>, file_path: &str, write_buf: &mut BufWriter<File>) {
+    let mut write_process = |com| write!(write_buf, "{}\n", com).unwrap();
+    write_command(command_list, file_path, &mut write_process);
 }
 
-pub fn write_to_stdout(command_list: Vec<Command>, config: &Config) {
+pub fn write_to_stdout(command_list: Vec<Command>, file_path: &str) {
     let mut write_process = |com| println!("{}", com);
-    write_command(command_list, config, &mut write_process);
+    write_command(command_list, file_path, &mut write_process);
 }
 
-fn write_command<F>(command_list: Vec<Command>, config: &Config, process: &mut F)
+fn write_command<F>(command_list: Vec<Command>, file_path: &str, process: &mut F)
 where
     F: FnMut(String),
 {
     let mut table = SymbolTable::new();
-    let path = Path::new(&config.filename);
+    let path = Path::new(file_path);
     let name = path
         .file_name()
         .unwrap()

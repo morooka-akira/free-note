@@ -1,5 +1,7 @@
 use config::Config;
 use std::error::Error;
+use std::fs::File;
+use std::io::BufWriter;
 use std::path::Path;
 
 pub mod code_writer;
@@ -16,22 +18,37 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             .filter(|dir| dir.path().extension().unwrap() == "vm")
             .filter_map(|p| Some(p.path().to_str()?.into()))
             .collect();
-        let mut commands = Vec::new();
-        for file in files {
-            let command_list = parser::parse(&file);
-            commands.append(&mut command_list.unwrap());
-        }
         if config.output.is_none() {
-            code_writer::write_to_stdout(commands, &config);
+            for file in files {
+                let mut commands = Vec::new();
+                let command_list = parser::parse(&file);
+                commands.append(&mut command_list.unwrap());
+                code_writer::write_to_stdout(commands, &file);
+            }
         } else {
-            code_writer::write_to_file(commands, &config);
+            if let Some(path) = &config.output {
+                let mut output_file = BufWriter::new(File::create(&path).unwrap());
+                for file in files {
+                    let mut commands = Vec::new();
+                    let command_list = parser::parse(&file);
+                    commands.append(&mut command_list.unwrap());
+                    code_writer::write_to_file(commands, &file, &mut output_file);
+                }
+            }
         }
     } else {
         let command_list = parser::parse(&config.filename);
         if config.output.is_none() {
-            code_writer::write_to_stdout(command_list.unwrap(), &config);
+            code_writer::write_to_stdout(command_list.unwrap(), &config.filename);
         } else {
-            code_writer::write_to_file(command_list.unwrap(), &config);
+            if let Some(path) = &config.output {
+                let mut output_file = BufWriter::new(File::create(&path).unwrap());
+                code_writer::write_to_file(
+                    command_list.unwrap(),
+                    &config.filename,
+                    &mut output_file,
+                );
+            }
         }
     }
     Ok(())
