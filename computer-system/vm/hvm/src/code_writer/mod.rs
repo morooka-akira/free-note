@@ -181,12 +181,14 @@ fn compile_function(fun_name: &str, arg_cnt: i32) -> Vec<String> {
     // 変数名のラベルを宣言する
     commands.push(format!("({})", fun_name).to_string());
     // 変数の数だけローカルのメモリを0初期化する
-    for n in 0..arg_cnt {
+    for _ in 0..arg_cnt {
         // スタックに0を追加
         commands.append(&mut compile_push_constants(0));
-        // ローカル変数を0初期化
-        commands.append(&mut compile_pop_local(n));
     }
+    // for n in 0..arg_cnt {
+    //     // ローカル変数を0初期化
+    //     commands.append(&mut compile_pop_local(n));
+    // }
     return commands;
 }
 
@@ -842,39 +844,11 @@ mod tests {
                     "M=M+1",
                     "@0",
                     "D=A",
-                    "@LCL",
-                    "A=D+M",
-                    "D=A",
-                    "@R13",
-                    "M=D",
-                    "@SP",
-                    "M=M-1",
-                    "A=M",
-                    "D=M",
-                    "@R13",
-                    "A=M",
-                    "M=D",
-                    "@0",
-                    "D=A",
                     "@SP",
                     "A=M",
                     "M=D",
                     "@SP",
-                    "M=M+1",
-                    "@1",
-                    "D=A",
-                    "@LCL",
-                    "A=D+M",
-                    "D=A",
-                    "@R13",
-                    "M=D",
-                    "@SP",
-                    "M=M-1",
-                    "A=M",
-                    "D=M",
-                    "@R13",
-                    "A=M",
-                    "M=D",
+                    "M=M+1"
                 ]
             )
         }
