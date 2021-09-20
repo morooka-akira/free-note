@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
 
 pub struct MonoPcm {
 	pub fs: u32,     /* 標本化周波数: samples per sec */
@@ -98,4 +99,48 @@ fn read_2byte_to_u16(file: &mut File) -> u16 {
 	file.read(&mut buf).expect("not read byte.");
 	let int = u16::from_le_bytes(buf);
 	return int;
+}
+
+// 書き込みがうまく行っていない
+pub fn wave_write_16bit_mono(pcm: &MonoPcm, file_name: &str) {
+	let mut file = File::create(file_name).expect("file not found.");
+	let riff_chunk_id: [u8; 4] = [b'R', b'I', b'I', b'F'];
+	let riff_chunk_size = 36 + pcm.length * 2;
+	let file_format_type: [u8; 4] = [b'W', b'A', b'V', b'A'];
+	let fmt_chunk_id: [u8; 4] = [b'f', b'm', b't', b' '];
+	let fmt_chunk_size: u32 = 16;
+	let wave_format_type: u16 = 1;
+	let channel: u16 = 1;
+	let samples_per_sec = pcm.fs;
+	let bytes_per_sec = pcm.fs * u32::from(pcm.bits) / 8;
+	let block_size: u16 = pcm.bits / 8;
+	let bits_per_sample: u16 = pcm.bits;
+	let data_chunk_id: [u8; 4] = [b'd', b'a', b't', b'a'];
+	let data_chunk_size = pcm.length * 2;
+
+	file.write(&riff_chunk_id).unwrap();
+	file.write(&riff_chunk_size.to_le_bytes()).unwrap();
+	file.write(&file_format_type).unwrap();
+	file.write(&fmt_chunk_id).unwrap();
+	file.write(&fmt_chunk_size.to_le_bytes()).unwrap();
+	file.write(&wave_format_type.to_le_bytes()).unwrap();
+	file.write(&channel.to_le_bytes()).unwrap();
+	file.write(&samples_per_sec.to_le_bytes()).unwrap();
+	file.write(&bytes_per_sec.to_le_bytes()).unwrap();
+	file.write(&block_size.to_le_bytes()).unwrap();
+	file.write(&bits_per_sample.to_le_bytes()).unwrap();
+	file.write(&data_chunk_id).unwrap();
+	file.write(&data_chunk_size.to_le_bytes()).unwrap();
+
+	for n in 0..pcm.length / 2 {
+		let mut data = pcm.s[n as usize] + 1.0 / 2.0 * 65536.0;
+		if data > 65535.0 {
+			data = 65535.0
+		} else if data < 0.0 {
+			data = 0.0
+		}
+		let d = ((data + 0.5) as u16 - 32768) as u16;
+		println!("data {:?}", &d.to_le_bytes());
+		file.write(&d.to_le_bytes()).unwrap();
+	}
 }

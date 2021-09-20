@@ -20,5 +20,6 @@ impl Config {
 
 pub fn run(config: Config) {
 	println!("Hello lib");
-	pcm::wave_read_16bit_mono(&config.filename);
+	let pcm = pcm::wave_read_16bit_mono(&config.filename);
+	pcm::wave_write_16bit_mono(&pcm, "./b.wav")
 }
