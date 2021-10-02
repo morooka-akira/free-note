@@ -66,12 +66,13 @@ pub fn wave_read_16bit_mono(file_name: &str) -> MonoPcm {
 	let mut pcm = MonoPcm::new();
 	pcm.fs = samples_per_sec;
 	pcm.bits = bits_per_sample;
-	pcm.length = data_chunk_size;
+	pcm.length = data_chunk_size / 2;
 
-	let sample: f32 = 32768.0;
-	for _ in 0..data_chunk_size {
-		let data = read_2byte_to_u16(&mut file);
-		let s = f32::from(data) / sample;
+	for _ in 0..pcm.length {
+		let data = read_2byte_to_i16(&mut file);
+		/* 音データを-1以上1未満の範囲に正規化する */
+		let s: f32 = f32::from(data);
+		let s: f32 = s / 32768.0;
 		pcm.s.push(s);
 	}
 	return pcm;
@@ -101,12 +102,19 @@ fn read_2byte_to_u16(file: &mut File) -> u16 {
 	return int;
 }
 
+fn read_2byte_to_i16(file: &mut File) -> i16 {
+	let mut buf: [u8; 2] = [0; 2];
+	file.read(&mut buf).expect("not read byte.");
+	let int = i16::from_le_bytes(buf);
+	return int;
+}
+
 // 書き込みがうまく行っていない
 pub fn wave_write_16bit_mono(pcm: &MonoPcm, file_name: &str) {
 	let mut file = File::create(file_name).expect("file not found.");
-	let riff_chunk_id: [u8; 4] = [b'R', b'I', b'I', b'F'];
+	let riff_chunk_id: [u8; 4] = [b'R', b'I', b'F', b'F'];
 	let riff_chunk_size = 36 + pcm.length * 2;
-	let file_format_type: [u8; 4] = [b'W', b'A', b'V', b'A'];
+	let file_format_type: [u8; 4] = [b'W', b'A', b'V', b'E'];
 	let fmt_chunk_id: [u8; 4] = [b'f', b'm', b't', b' '];
 	let fmt_chunk_size: u32 = 16;
 	let wave_format_type: u16 = 1;
@@ -132,15 +140,15 @@ pub fn wave_write_16bit_mono(pcm: &MonoPcm, file_name: &str) {
 	file.write(&data_chunk_id).unwrap();
 	file.write(&data_chunk_size.to_le_bytes()).unwrap();
 
-	for n in 0..pcm.length / 2 {
-		let mut data = pcm.s[n as usize] + 1.0 / 2.0 * 65536.0;
+	for n in 0..pcm.length {
+		let mut data: f32 = (pcm.s[n as usize] + 1.0) / 2.0 * 65536.0;
 		if data > 65535.0 {
 			data = 65535.0
 		} else if data < 0.0 {
 			data = 0.0
 		}
-		let d = ((data + 0.5) as u16 - 32768) as u16;
-		println!("data {:?}", &d.to_le_bytes());
+		let d: i32 = (data + 0.5) as i32 - 32768;
+		let d: i16 = d as i16;
 		file.write(&d.to_le_bytes()).unwrap();
 	}
 }

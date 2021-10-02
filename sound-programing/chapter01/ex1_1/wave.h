@@ -1,18 +1,18 @@
 typedef struct
 {
-  int fs; /* •W–{‰»ü”g” */
-  int bits; /* —Êq‰»¸“x */
-  int length; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  double *s; /* ‰¹ƒf[ƒ^ */
+  int fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  int bits; /* é‡å­åŒ–ç²¾åº¦ */
+  int length; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  double *s; /* éŸ³ãƒ‡ãƒ¼ã‚¿ */
 } MONO_PCM;
 
 typedef struct
 {
-  int fs; /* •W–{‰»ü”g” */
-  int bits; /* —Êq‰»¸“x */
-  int length; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  double *sL; /* ‰¹ƒf[ƒ^iLƒ`ƒƒƒ“ƒlƒ‹j */
-  double *sR; /* ‰¹ƒf[ƒ^iRƒ`ƒƒƒ“ƒlƒ‹j */
+  int fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  int bits; /* é‡å­åŒ–ç²¾åº¦ */
+  int length; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  double *sL; /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆLãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ */
+  double *sR; /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆRãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ */
 } STEREO_PCM;
 
 void wave_read_8bit_mono(MONO_PCM *pcm, char *file_name)
@@ -50,15 +50,15 @@ void wave_read_8bit_mono(MONO_PCM *pcm, char *file_name)
   fread(data_chunk_ID, 1, 4, fp);
   fread(&data_chunk_size, 4, 1, fp);
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = bits_per_sample; /* —Êq‰»¸“x */
-  pcm->length = data_chunk_size; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->s = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = bits_per_sample; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = data_chunk_size; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->s = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (n = 0; n < pcm->length; n++)
   {
-    fread(&data, 1, 1, fp); /* ‰¹ƒf[ƒ^‚Ì“Ç‚İæ‚è */
-    pcm->s[n] = ((double)data - 128.0) / 128.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    fread(&data, 1, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®èª­ã¿å–ã‚Š */
+    pcm->s[n] = ((double)data - 128.0) / 128.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
   }
   
   fclose(fp);
@@ -101,10 +101,10 @@ void wave_write_8bit_mono(MONO_PCM *pcm, char *file_name)
   fmt_chunk_size = 16;
   wave_format_type = 1;
   channel = 1;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = pcm->fs * pcm->bits / 8;
   block_size = pcm->bits / 8;
-  bits_per_sample = pcm->bits; /* —Êq‰»¸“x */
+  bits_per_sample = pcm->bits; /* é‡å­åŒ–ç²¾åº¦ */
   
   data_chunk_ID[0] = 'd';
   data_chunk_ID[1] = 'a';
@@ -134,21 +134,21 @@ void wave_write_8bit_mono(MONO_PCM *pcm, char *file_name)
     
     if (s > 255.0)
     {
-      s = 255.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      s = 255.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (s < 0.0)
     {
-      s = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      s = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    data = (unsigned char)((int)(s + 0.5)); /* lÌŒÜ“ü */
-    fwrite(&data, 1, 1, fp); /* ‰¹ƒf[ƒ^‚Ì‘‚«o‚µ */
+    data = (unsigned char)((int)(s + 0.5)); /* å››æ¨äº”å…¥ */
+    fwrite(&data, 1, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®æ›¸ãå‡ºã— */
   }
   
-  if ((pcm->length % 2) == 1) /* ‰¹ƒf[ƒ^‚Ì’·‚³‚ªŠï”‚Ì‚Æ‚« */
+  if ((pcm->length % 2) == 1) /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã•ãŒå¥‡æ•°ã®ã¨ã */
   {
     data = 0;
-    fwrite(&data, 1, 1, fp); /* 0ƒpƒfƒBƒ“ƒO */
+    fwrite(&data, 1, 1, fp); /* 0ãƒ‘ãƒ‡ã‚£ãƒ³ã‚° */
   }
   
   fclose(fp);
@@ -189,19 +189,19 @@ void wave_read_8bit_stereo(STEREO_PCM *pcm, char *file_name)
   fread(data_chunk_ID, 1, 4, fp);
   fread(&data_chunk_size, 4, 1, fp);
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = bits_per_sample; /* —Êq‰»¸“x */
-  pcm->length = data_chunk_size / 2; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->sL = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
-  pcm->sR = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = bits_per_sample; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = data_chunk_size / 2; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->sL = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
+  pcm->sR = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (n = 0; n < pcm->length; n++)
   {
-    fread(&data, 1, 1, fp); /* ‰¹ƒf[ƒ^iLƒ`ƒƒƒ“ƒlƒ‹j‚Ì“Ç‚İæ‚è */
-    pcm->sL[n] = ((double)data - 128.0) / 128.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    fread(&data, 1, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆLãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®èª­ã¿å–ã‚Š */
+    pcm->sL[n] = ((double)data - 128.0) / 128.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
     
-    fread(&data, 1, 1, fp); /* ‰¹ƒf[ƒ^iRƒ`ƒƒƒ“ƒlƒ‹j‚Ì“Ç‚İæ‚è */
-    pcm->sR[n] = ((double)data - 128.0) / 128.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    fread(&data, 1, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆRãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®èª­ã¿å–ã‚Š */
+    pcm->sR[n] = ((double)data - 128.0) / 128.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
   }
   
   fclose(fp);
@@ -245,10 +245,10 @@ void wave_write_8bit_stereo(STEREO_PCM *pcm, char *file_name)
   fmt_chunk_size = 16;
   wave_format_type = 1;
   channel = 2;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = pcm->fs * pcm->bits / 8 * 2;
   block_size = pcm->bits / 8 * 2;
-  bits_per_sample = pcm->bits; /* —Êq‰»¸“x */
+  bits_per_sample = pcm->bits; /* é‡å­åŒ–ç²¾åº¦ */
   
   data_chunk_ID[0] = 'd';
   data_chunk_ID[1] = 'a';
@@ -278,29 +278,29 @@ void wave_write_8bit_stereo(STEREO_PCM *pcm, char *file_name)
     
     if (sL > 255.0)
     {
-      sL = 255.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sL = 255.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (sL < 0.0)
     {
-      sL = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sL = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    data = (unsigned char)((int)(sL + 0.5)); /* lÌŒÜ“ü */
-    fwrite(&data, 1, 1, fp); /* ‰¹ƒf[ƒ^iLƒ`ƒƒƒ“ƒlƒ‹j‚Ì‘‚«o‚µ */
+    data = (unsigned char)((int)(sL + 0.5)); /* å››æ¨äº”å…¥ */
+    fwrite(&data, 1, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆLãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®æ›¸ãå‡ºã— */
     
     sR = (pcm->sR[n] + 1.0) / 2.0 * 256.0;
     
     if (sR > 255.0)
     {
-      sR = 255.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sR = 255.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (sR < 0.0)
     {
-      sR = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sR = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    data = (unsigned char)((int)(sR + 0.5)); /* lÌŒÜ“ü */
-    fwrite(&data, 1, 1, fp); /* ‰¹ƒf[ƒ^iRƒ`ƒƒƒ“ƒlƒ‹j‚Ì‘‚«o‚µ */
+    data = (unsigned char)((int)(sR + 0.5)); /* å››æ¨äº”å…¥ */
+    fwrite(&data, 1, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆRãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®æ›¸ãå‡ºã— */
   }
   
   fclose(fp);
@@ -341,15 +341,15 @@ void wave_read_16bit_mono(MONO_PCM *pcm, char *file_name)
   fread(data_chunk_ID, 1, 4, fp);
   fread(&data_chunk_size, 4, 1, fp);
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = bits_per_sample; /* —Êq‰»¸“x */
-  pcm->length = data_chunk_size / 2; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->s = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = bits_per_sample; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = data_chunk_size / 2; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->s = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (n = 0; n < pcm->length; n++)
   {
-    fread(&data, 2, 1, fp); /* ‰¹ƒf[ƒ^‚Ì“Ç‚İæ‚è */
-    pcm->s[n] = (double)data / 32768.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    fread(&data, 2, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®èª­ã¿å–ã‚Š */
+    pcm->s[n] = (double)data / 32768.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
   }
   
   fclose(fp);
@@ -392,10 +392,10 @@ void wave_write_16bit_mono(MONO_PCM *pcm, char *file_name)
   fmt_chunk_size = 16;
   wave_format_type = 1;
   channel = 1;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = pcm->fs * pcm->bits / 8;
   block_size = pcm->bits / 8;
-  bits_per_sample = pcm->bits; /* —Êq‰»¸“x */
+  bits_per_sample = pcm->bits; /* é‡å­åŒ–ç²¾åº¦ */
   
   data_chunk_ID[0] = 'd';
   data_chunk_ID[1] = 'a';
@@ -425,15 +425,15 @@ void wave_write_16bit_mono(MONO_PCM *pcm, char *file_name)
     
     if (s > 65535.0)
     {
-      s = 65535.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      s = 65535.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (s < 0.0)
     {
-      s = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      s = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    data = (short)((int)(s + 0.5) - 32768); /* lÌŒÜ“ü‚ÆƒIƒtƒZƒbƒg‚Ì’²ß */
-    fwrite(&data, 2, 1, fp); /* ‰¹ƒf[ƒ^‚Ì‘‚«o‚µ */
+    data = (short)((int)(s + 0.5) - 32768); /* å››æ¨äº”å…¥ã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆã®èª¿ç¯€ */
+    fwrite(&data, 2, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®æ›¸ãå‡ºã— */
   }
   
   fclose(fp);
@@ -474,19 +474,19 @@ void wave_read_16bit_stereo(STEREO_PCM *pcm, char *file_name)
   fread(data_chunk_ID, 1, 4, fp);
   fread(&data_chunk_size, 4, 1, fp);
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = bits_per_sample; /* —Êq‰»¸“x */
-  pcm->length = data_chunk_size / 4; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->sL = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
-  pcm->sR = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = bits_per_sample; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = data_chunk_size / 4; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->sL = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
+  pcm->sR = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (n = 0; n < pcm->length; n++)
   {
-    fread(&data, 2, 1, fp); /* ‰¹ƒf[ƒ^iLƒ`ƒƒƒ“ƒlƒ‹j‚Ì“Ç‚İæ‚è */
-    pcm->sL[n] = (double)data / 32768.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    fread(&data, 2, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆLãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®èª­ã¿å–ã‚Š */
+    pcm->sL[n] = (double)data / 32768.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
     
-    fread(&data, 2, 1, fp); /* ‰¹ƒf[ƒ^iRƒ`ƒƒƒ“ƒlƒ‹j‚Ì“Ç‚İæ‚è */
-    pcm->sR[n] = (double)data / 32768.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    fread(&data, 2, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆRãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®èª­ã¿å–ã‚Š */
+    pcm->sR[n] = (double)data / 32768.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
   }
   
   fclose(fp);
@@ -530,10 +530,10 @@ void wave_write_16bit_stereo(STEREO_PCM *pcm, char *file_name)
   fmt_chunk_size = 16;
   wave_format_type = 1;
   channel = 2;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = pcm->fs * pcm->bits / 8 * 2;
   block_size = pcm->bits / 8 * 2;
-  bits_per_sample = pcm->bits; /* —Êq‰»¸“x */
+  bits_per_sample = pcm->bits; /* é‡å­åŒ–ç²¾åº¦ */
   
   data_chunk_ID[0] = 'd';
   data_chunk_ID[1] = 'a';
@@ -563,29 +563,29 @@ void wave_write_16bit_stereo(STEREO_PCM *pcm, char *file_name)
     
     if (sL > 65535.0)
     {
-      sL = 65535.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sL = 65535.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (sL < 0.0)
     {
-      sL = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sL = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    data = (short)((int)(sL + 0.5) - 32768); /* lÌŒÜ“ü‚ÆƒIƒtƒZƒbƒg‚Ì’²ß */
-    fwrite(&data, 2, 1, fp); /* ‰¹ƒf[ƒ^iLƒ`ƒƒƒ“ƒlƒ‹j‚Ì‘‚«o‚µ */
+    data = (short)((int)(sL + 0.5) - 32768); /* å››æ¨äº”å…¥ã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆã®èª¿ç¯€ */
+    fwrite(&data, 2, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆLãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®æ›¸ãå‡ºã— */
     
     sR = (pcm->sR[n] + 1.0) / 2.0 * 65536.0;
     
     if (sR > 65535.0)
     {
-      sR = 65535.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sR = 65535.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (sR < 0.0)
     {
-      sR = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      sR = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    data = (short)((int)(sR + 0.5) - 32768); /* lÌŒÜ“ü‚ÆƒIƒtƒZƒbƒg‚Ì’²ß */
-    fwrite(&data, 2, 1, fp); /* ‰¹ƒf[ƒ^iRƒ`ƒƒƒ“ƒlƒ‹j‚Ì‘‚«o‚µ */
+    data = (short)((int)(sR + 0.5) - 32768); /* å››æ¨äº”å…¥ã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆã®èª¿ç¯€ */
+    fwrite(&data, 2, 1, fp); /* éŸ³ãƒ‡ãƒ¼ã‚¿ï¼ˆRãƒãƒ£ãƒ³ãƒãƒ«ï¼‰ã®æ›¸ãå‡ºã— */
   }
   
   fclose(fp);
@@ -612,8 +612,8 @@ void wave_read_PCMU_mono(MONO_PCM *pcm, char *file_name)
   char data_chunk_ID[4];
   long data_chunk_size;
   
-  short s; /* 16bit‚Ì‰¹ƒf[ƒ^ */
-  unsigned char c; /* 8bit‚Ìˆ³kƒf[ƒ^ */
+  short s; /* 16bitã®éŸ³ãƒ‡ãƒ¼ã‚¿ */
+  unsigned char c; /* 8bitã®åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ */
   unsigned char sign, exponent, mantissa;
   int n, magnitude;
   
@@ -637,16 +637,16 @@ void wave_read_PCMU_mono(MONO_PCM *pcm, char *file_name)
   fread(data_chunk_ID, 1, 4, fp);
   fread(&data_chunk_size, 4, 1, fp);
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = 16; /* —Êq‰»¸“x */
-  pcm->length = sample_length; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->s = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = 16; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = sample_length; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->s = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (n = 0; n < pcm->length; n++)
   {
-    fread(&c, 1, 1, fp); /* ˆ³kƒf[ƒ^‚Ì“Ç‚İæ‚è */
+    fread(&c, 1, 1, fp); /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®èª­ã¿å–ã‚Š */
     
-    c = ~c;
+    c = â€¾c;
     
     sign = c & 0x80;
     exponent = (c >> 4) & 0x07;
@@ -663,7 +663,7 @@ void wave_read_PCMU_mono(MONO_PCM *pcm, char *file_name)
       s = (short)magnitude;
     }
     
-    pcm->s[n] = (double)s / 32768.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    pcm->s[n] = (double)s / 32768.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
   }
   
   fclose(fp);
@@ -691,8 +691,8 @@ void wave_write_PCMU_mono(MONO_PCM *pcm, char *file_name)
   long data_chunk_size;
   
   double x;
-  short s; /* 16bit‚Ì‰¹ƒf[ƒ^ */
-  unsigned char c; /* 8bit‚Ìˆ³kƒf[ƒ^ */
+  short s; /* 16bitã®éŸ³ãƒ‡ãƒ¼ã‚¿ */
+  unsigned char c; /* 8bitã®åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ */
   unsigned char sign, exponent, mantissa;
   int n, magnitude;
   
@@ -718,10 +718,10 @@ void wave_write_PCMU_mono(MONO_PCM *pcm, char *file_name)
   fmt_chunk_size = 18;
   wave_format_type = 7;
   channel = 1;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = samples_per_sec;
   block_size = 1;
-  bits_per_sample = 8; /* —Êq‰»¸“x */
+  bits_per_sample = 8; /* é‡å­åŒ–ç²¾åº¦ */
   extra_size = 0;
   
   fact_chunk_ID[0] = 'f';
@@ -763,14 +763,14 @@ void wave_write_PCMU_mono(MONO_PCM *pcm, char *file_name)
     
     if (x > 65535.0)
     {
-      x = 65535.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      x = 65535.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (x < 0.0)
     {
-      x = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      x = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    s = (short)((int)(x + 0.5) - 32768); /* lÌŒÜ“ü‚ÆƒIƒtƒZƒbƒg‚Ì’²ß */
+    s = (short)((int)(x + 0.5) - 32768); /* å››æ¨äº”å…¥ã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆã®èª¿ç¯€ */
     
     if (s < 0)
     {
@@ -799,15 +799,15 @@ void wave_write_PCMU_mono(MONO_PCM *pcm, char *file_name)
     
     mantissa = (magnitude >> (exponent + 3)) & 0x0F;
     
-    c = ~(sign | (exponent << 4) | mantissa);
+    c = â€¾(sign | (exponent << 4) | mantissa);
     
-    fwrite(&c, 1, 1, fp); /* ˆ³kƒf[ƒ^‚Ì‘‚«o‚µ */
+    fwrite(&c, 1, 1, fp); /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®æ›¸ãå‡ºã— */
   }
   
-  if ((pcm->length % 2) == 1) /* ˆ³kƒf[ƒ^‚Ì’·‚³‚ªŠï”‚Ì‚Æ‚« */
+  if ((pcm->length % 2) == 1) /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®é•·ã•ãŒå¥‡æ•°ã®ã¨ã */
   {
     c = 0;
-    fwrite(&c, 1, 1, fp); /* 0ƒpƒfƒBƒ“ƒO */
+    fwrite(&c, 1, 1, fp); /* 0ãƒ‘ãƒ‡ã‚£ãƒ³ã‚° */
   }
   
   fclose(fp);
@@ -834,8 +834,8 @@ void wave_read_PCMA_mono(MONO_PCM *pcm, char *file_name)
   char data_chunk_ID[4];
   long data_chunk_size;
   
-  short s; /* 16bit‚Ì‰¹ƒf[ƒ^ */
-  unsigned char c; /* 8bit‚Ìˆ³kƒf[ƒ^ */
+  short s; /* 16bitã®éŸ³ãƒ‡ãƒ¼ã‚¿ */
+  unsigned char c; /* 8bitã®åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ */
   unsigned char sign, exponent, mantissa;
   int n, magnitude;
   
@@ -859,14 +859,14 @@ void wave_read_PCMA_mono(MONO_PCM *pcm, char *file_name)
   fread(data_chunk_ID, 1, 4, fp);
   fread(&data_chunk_size, 4, 1, fp);
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = 16; /* —Êq‰»¸“x */
-  pcm->length = sample_length; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->s = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = 16; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = sample_length; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->s = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (n = 0; n < pcm->length; n++)
   {
-    fread(&c, 1, 1, fp); /* ˆ³kƒf[ƒ^‚Ì“Ç‚İæ‚è */
+    fread(&c, 1, 1, fp); /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®èª­ã¿å–ã‚Š */
     
     c ^= 0xD5;
     
@@ -892,7 +892,7 @@ void wave_read_PCMA_mono(MONO_PCM *pcm, char *file_name)
       s = (short)magnitude;
     }
     
-    pcm->s[n] = (double)s / 32768.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+    pcm->s[n] = (double)s / 32768.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
   }
   
   fclose(fp);
@@ -920,8 +920,8 @@ void wave_write_PCMA_mono(MONO_PCM *pcm, char *file_name)
   long data_chunk_size;
   
   double x;
-  short s; /* 16bit‚Ì‰¹ƒf[ƒ^ */
-  unsigned char c; /* 8bit‚Ìˆ³kƒf[ƒ^ */
+  short s; /* 16bitã®éŸ³ãƒ‡ãƒ¼ã‚¿ */
+  unsigned char c; /* 8bitã®åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ */
   unsigned char sign, exponent, mantissa;
   int n, magnitude;
   
@@ -947,10 +947,10 @@ void wave_write_PCMA_mono(MONO_PCM *pcm, char *file_name)
   fmt_chunk_size = 18;
   wave_format_type = 6;
   channel = 1;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = samples_per_sec;
   block_size = 1;
-  bits_per_sample = 8; /* —Êq‰»¸“x */
+  bits_per_sample = 8; /* é‡å­åŒ–ç²¾åº¦ */
   extra_size = 0;
   
   fact_chunk_ID[0] = 'f';
@@ -992,14 +992,14 @@ void wave_write_PCMA_mono(MONO_PCM *pcm, char *file_name)
     
     if (x > 65535.0)
     {
-      x = 65535.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      x = 65535.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     else if (x < 0.0)
     {
-      x = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+      x = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
     }
     
-    s = (short)((int)(x + 0.5) - 32768); /* lÌŒÜ“ü‚ÆƒIƒtƒZƒbƒg‚Ì’²ß */
+    s = (short)((int)(x + 0.5) - 32768); /* å››æ¨äº”å…¥ã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆã®èª¿ç¯€ */
     
     if (s < 0)
     {
@@ -1036,13 +1036,13 @@ void wave_write_PCMA_mono(MONO_PCM *pcm, char *file_name)
     
     c = (sign | (exponent << 4) | mantissa) ^ 0xD5;
     
-    fwrite(&c, 1, 1, fp); /* ˆ³kƒf[ƒ^‚Ì‘‚«o‚µ */
+    fwrite(&c, 1, 1, fp); /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®æ›¸ãå‡ºã— */
   }
   
-  if ((pcm->length % 2) == 1) /* ˆ³kƒf[ƒ^‚Ì’·‚³‚ªŠï”‚Ì‚Æ‚« */
+  if ((pcm->length % 2) == 1) /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®é•·ã•ãŒå¥‡æ•°ã®ã¨ã */
   {
     c = 0;
-    fwrite(&c, 1, 1, fp); /* 0ƒpƒfƒBƒ“ƒO */
+    fwrite(&c, 1, 1, fp); /* 0ãƒ‘ãƒ‡ã‚£ãƒ³ã‚° */
   }
   
   fclose(fp);
@@ -1070,8 +1070,8 @@ void wave_read_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
   char data_chunk_ID[4];
   long data_chunk_size;
   
-  short s; /* 16bit‚Ì‰¹ƒf[ƒ^ */
-  unsigned char c; /* 4bit‚Ìˆ³kƒf[ƒ^ */
+  short s; /* 16bitã®éŸ³ãƒ‡ãƒ¼ã‚¿ */
+  unsigned char c; /* 4bitã®åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ */
   unsigned char header[4];
   unsigned char data;
   int n, sp, dp, offset, block, number_of_block, index, step_size;
@@ -1121,10 +1121,10 @@ void wave_read_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
   
   number_of_block = data_chunk_size / block_size;
   
-  pcm->fs = samples_per_sec; /* •W–{‰»ü”g” */
-  pcm->bits = 16; /* —Êq‰»¸“x */
-  pcm->length = sample_length; /* ‰¹ƒf[ƒ^‚Ì’·‚³ */
-  pcm->s = calloc(pcm->length, sizeof(double)); /* ƒƒ‚ƒŠ‚ÌŠm•Û */
+  pcm->fs = samples_per_sec; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
+  pcm->bits = 16; /* é‡å­åŒ–ç²¾åº¦ */
+  pcm->length = sample_length; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã®é•·ã• */
+  pcm->s = calloc(pcm->length, sizeof(double)); /* ãƒ¡ãƒ¢ãƒªã®ç¢ºä¿ */
   
   for (block = 0; block < number_of_block; block++)
   {
@@ -1134,7 +1134,7 @@ void wave_read_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
     {
       if (n == 0)
       {
-        fread(header, 1, 4, fp); /* ƒwƒbƒ_‚Ì“Ç‚İæ‚è */
+        fread(header, 1, 4, fp); /* ãƒ˜ãƒƒãƒ€ã®èª­ã¿å–ã‚Š */
         
         sp = ((short)(char)header[1] << 8) + header[0];
         index = header[2];
@@ -1145,18 +1145,18 @@ void wave_read_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
       {
         if ((n % 2) == 1)
         {
-          fread(&data, 1, 1, fp); /* ˆ³kƒf[ƒ^‚Ì“Ç‚İæ‚è */
+          fread(&data, 1, 1, fp); /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®èª­ã¿å–ã‚Š */
           
-          c = (unsigned char)(data & 0x0F); /* data‚Ì‰ºˆÊ4bit */
+          c = (unsigned char)(data & 0x0F); /* dataã®ä¸‹ä½4bit */
         }
         else
         {
-          c = (unsigned char)((data >> 4) & 0x0F); /* data‚ÌãˆÊ4bit */
+          c = (unsigned char)((data >> 4) & 0x0F); /* dataã®ä¸Šä½4bit */
         }
         
         step_size = step_size_table[index];
         
-        /* L’£ */
+        /* ä¼¸å¼µ */
         dp = step_size >> 3;
         if ((c & 0x1) == 0x1)
         {
@@ -1202,7 +1202,7 @@ void wave_read_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
         s = sp;
       }
       
-      pcm->s[offset + n] = (double)s / 32768.0; /* ‰¹ƒf[ƒ^‚ğ-1ˆÈã1–¢–‚Ì”ÍˆÍ‚É³‹K‰»‚·‚é */
+      pcm->s[offset + n] = (double)s / 32768.0; /* éŸ³ãƒ‡ãƒ¼ã‚¿ã‚’-1ä»¥ä¸Š1æœªæº€ã®ç¯„å›²ã«æ­£è¦åŒ–ã™ã‚‹ */
     }
   }
   
@@ -1232,8 +1232,8 @@ void wave_write_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
   long data_chunk_size;
   
   double x;
-  short s; /* 16bit‚Ì‰¹ƒf[ƒ^ */
-  unsigned char c; /* 4bit‚Ìˆ³kƒf[ƒ^ */
+  short s; /* 16bitã®éŸ³ãƒ‡ãƒ¼ã‚¿ */
+  unsigned char c; /* 4bitã®åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ */
   unsigned char header[4];
   unsigned char data;
   int n, sp, d, dp, offset, block, number_of_block, index, step_size;
@@ -1281,9 +1281,9 @@ void wave_write_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
   fmt_chunk_size = 20;
   wave_format_type = 17;
   channel = 1;
-  samples_per_sec = pcm->fs; /* •W–{‰»ü”g” */
+  samples_per_sec = pcm->fs; /* æ¨™æœ¬åŒ–å‘¨æ³¢æ•° */
   bytes_per_sec = (long)(block_size * samples_per_sec / samples_per_block);
-  bits_per_sample = 4; /* —Êq‰»¸“x */
+  bits_per_sample = 4; /* é‡å­åŒ–ç²¾åº¦ */
   extra_size = 2;
   
   fact_chunk_ID[0] = 'f';
@@ -1330,30 +1330,30 @@ void wave_write_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
       
       if (x > 65535.0)
       {
-        x = 65535.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+        x = 65535.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
       }
       else if (x < 0.0)
       {
-        x = 0.0; /* ƒNƒŠƒbƒsƒ“ƒO */
+        x = 0.0; /* ã‚¯ãƒªãƒƒãƒ”ãƒ³ã‚° */
       }
       
-      s = (short)((int)(x + 0.5) - 32768); /* lÌŒÜ“ü‚ÆƒIƒtƒZƒbƒg‚Ì’²ß */
+      s = (short)((int)(x + 0.5) - 32768); /* å››æ¨äº”å…¥ã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆã®èª¿ç¯€ */
       
       if (block == 0 && n == 0)
       {
-        index = 0; /* Å‰‚ÌƒuƒƒbƒN‚É‚¨‚¯‚éindex‚Ì‰Šú’l‚ğ0‚É‚·‚é */
+        index = 0; /* æœ€åˆã®ãƒ–ãƒ­ãƒƒã‚¯ã«ãŠã‘ã‚‹indexã®åˆæœŸå€¤ã‚’0ã«ã™ã‚‹ */
       }
       
       if (n == 0)
       {
-        header[0] = (unsigned char)(s & 0x00FF); /* s‚Ì‰ºˆÊƒoƒCƒg */
-        header[1] = (unsigned char)((s >> 8) & 0x00FF); /* s‚ÌãˆÊƒoƒCƒg */
-        header[2] = (unsigned char)index; /* ƒCƒ“ƒfƒbƒNƒX */
+        header[0] = (unsigned char)(s & 0x00FF); /* sã®ä¸‹ä½ãƒã‚¤ãƒˆ */
+        header[1] = (unsigned char)((s >> 8) & 0x00FF); /* sã®ä¸Šä½ãƒã‚¤ãƒˆ */
+        header[2] = (unsigned char)index; /* ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ */
         header[3] = 0;
         
-        fwrite(header, 1, 4, fp); /* ƒwƒbƒ_‚Ì‘‚«o‚µ */
+        fwrite(header, 1, 4, fp); /* ãƒ˜ãƒƒãƒ€ã®æ›¸ãå‡ºã— */
         
-        sp = s; /* sp‚Ì‰Šú’l‚ğs‚É‚·‚é */
+        sp = s; /* spã®åˆæœŸå€¤ã‚’sã«ã™ã‚‹ */
       }
       else
       {
@@ -1370,7 +1370,7 @@ void wave_write_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
         
         step_size = step_size_table[index];
         
-        /* ˆ³k */
+        /* åœ§ç¸® */
         if (d >= step_size)
         {
           c |= 0x4;
@@ -1386,7 +1386,7 @@ void wave_write_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
           c |= 0x1;
         }
         
-        /* L’£ */
+        /* ä¼¸å¼µ */
         dp = step_size >> 3;
         if ((c & 0x1) == 0x1)
         {
@@ -1431,13 +1431,13 @@ void wave_write_IMA_ADPCM_mono(MONO_PCM *pcm, char *file_name)
         
         if ((n % 2) == 1)
         {
-          data = c & 0xF; /* data‚Ì‰ºˆÊ4bit */
+          data = c & 0xF; /* dataã®ä¸‹ä½4bit */
         }
         else
         {
-          data |= (c & 0xF) << 4; /* data‚ÌãˆÊ4bit */
+          data |= (c & 0xF) << 4; /* dataã®ä¸Šä½4bit */
           
-          fwrite(&data, 1, 1, fp); /* ˆ³kƒf[ƒ^‚Ì‘‚«o‚µ */
+          fwrite(&data, 1, 1, fp); /* åœ§ç¸®ãƒ‡ãƒ¼ã‚¿ã®æ›¸ãå‡ºã— */
         }
       }
     }
