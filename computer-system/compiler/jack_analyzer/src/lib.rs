@@ -1,6 +1,9 @@
+use std::fs::File;
+
 mod jack_tokenizer;
 
-pub fn run() {
+pub fn run(file_name: &str) {
     println!("run jack analyzer");
-    jack_tokenizer::tokenize();
+    let file = File::open(file_name).expect("failed to open");
+    jack_tokenizer::tokenize(&file);
 }
