@@ -11,6 +11,7 @@ class Main {
         do game.run();
         do game.dispose();
         let int a = 5000;
+        let s = "Hello world";
         return;
     }
 }

@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
+use std::str;
 
 struct Token {
     pub raw: String,
@@ -55,11 +56,76 @@ pub fn tokenize(file: &File) {
     }
 }
 
+pub fn tokenize3(file: &File) {
+    println!("start analyze");
+    for line in BufReader::new(file).lines() {
+        if let Ok(l) = line {
+            let line = trim_comment(&l);
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let line_bytes = line.as_bytes();
+            let mut i: usize = 0;
+            while i < line_bytes.len() {
+                // 文字の判定
+                if line_bytes[i] == b'"' {
+                    // ”の次文字から見るため + 1
+                    let mut p = i + 1;
+                    if p >= line_bytes.len() {
+                        return;
+                    }
+                    while p < line_bytes.len() && line_bytes[p] != b'"' {
+                        p += 1;
+                    }
+                    let string_const = str::from_utf8(&line_bytes[(i + 1)..p]).unwrap();
+                    println!("string_const: {}", string_const);
+                    // ”の次文字から見るため + 1
+                    i = p + 1;
+                    continue;
+                }
+                // 文字の判定
+                if line_bytes[i].is_ascii_alphanumeric() {
+                    let mut p = i;
+                    while line_bytes[p].is_ascii_alphanumeric() {
+                        p += 1;
+                    }
+                    // ここからキーワードを除外する
+                    let str = str::from_utf8(&line_bytes[i..p]).unwrap();
+                    println!("{}", str);
+                    i = p;
+                    continue;
+                }
+                i += 1;
+            }
+        }
+    }
+}
+
+pub fn tokenize2(file: &File) {
+    println!("start analyze");
+    let mut buf_reader = BufReader::new(file);
+    let mut contents = String::new();
+    buf_reader
+        .read_to_string(&mut contents)
+        .expect("read error");
+    println!("num: {:?}", contents);
+    let mut i: usize = 0;
+    let mut buf = contents.as_bytes();
+    while i < buf.len() {
+        if buf[i] == b'/' && !(i + 1 >= buf.len()) && buf[i + 1] == b'/' {
+            println!("break line {}", buf[i]);
+        }
+        i += 1;
+    }
+}
+
 fn tokenize_id(chars: &mut Vec<char>) {
     if chars.is_empty() {
         return;
     }
     let is_num = chars.iter().all(|c| c >= &'0' && c <= &'9');
+    let is_alpha = chars.iter().all(|c| c >= &'0' && c <= &'9');
     println!("num: {:?}, is_num: {}", chars, is_num);
     chars.clear();
 }
