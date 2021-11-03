@@ -30,7 +30,7 @@ pub enum Keyword {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     Keyword,
     Symbol,
@@ -111,7 +111,7 @@ impl Tokenizer {
     }
 }
 
-pub fn tokenize(file: &File) -> Vec<Token> {
+pub fn tokenize(file: &File) -> Tokenizer {
     let mut tokens: Vec<Token> = vec![];
     for line in BufReader::new(file).lines() {
         if let Ok(l) = line {
@@ -165,7 +165,7 @@ pub fn tokenize(file: &File) -> Vec<Token> {
             }
         }
     }
-    return tokens;
+    return Tokenizer::new(tokens);
 }
 
 fn obtain_string_const(bytes: &[u8], index: usize) -> Token {

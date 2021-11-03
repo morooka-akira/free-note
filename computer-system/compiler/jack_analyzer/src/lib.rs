@@ -7,6 +7,6 @@ pub fn run(file_name: &str) {
     println!("run jack analyzer");
     let file = File::open(file_name).expect("failed to open");
 
-    let tokens = jack_tokenizer::tokenize(&file);
-    compilation_engine::compile(tokens)
+    let mut tokenizer = jack_tokenizer::tokenize(&file);
+    compilation_engine::compile(&mut tokenizer)
 }
