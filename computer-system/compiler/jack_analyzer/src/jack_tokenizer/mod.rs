@@ -1,63 +1,118 @@
 use regex::Regex;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
+use std::num::ParseIntError;
 use std::str;
 
-struct Token {
+#[derive(Debug, Clone, PartialOrd, PartialEq)]
+pub enum Keyword {
+    Class,
+    Method,
+    Function,
+    Constructor,
+    Int,
+    Boolean,
+    Char,
+    Void,
+    Var,
+    Static,
+    Field,
+    Let,
+    Do,
+    If,
+    Else,
+    While,
+    Return,
+    True,
+    False,
+    Null,
+    This,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenType {
+    Keyword,
+    Symbol,
+    Identifier,
+    IntConst,
+    StringConst,
+}
+
+#[derive(Debug, Clone)]
+pub struct Token {
     pub raw: String,
+    pub token_type: TokenType,
 }
 
 impl Token {
-    pub fn new(raw: String) -> Token {
-        Token { raw: raw }
+    pub fn new(raw: String, token_type: TokenType) -> Token {
+        Token {
+            raw: raw,
+            token_type,
+        }
     }
-}
 
-pub fn tokenize(file: &File) {
-    println!("start analyze");
-    let mut tokens: Vec<Token> = vec![];
-    for line in BufReader::new(file).lines() {
-        if let Ok(l) = line {
-            let line = trim_comment(&l);
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            let mut a: Vec<char> = vec![];
-            for c in line.chars() {
-                if c == ' ' {
-                    tokenize_id(&mut a);
-                    continue;
-                }
-                let c_str = c.to_string();
-                if is_symbol(&c_str) {
-                    tokens.push(Token::new(c_str));
-                    tokenize_id(&mut a);
-                    continue;
-                }
-                a.push(c);
-                let str: String = a.iter().collect();
-                if is_keyword(&str) {
-                    tokens.push(Token::new(str));
-                    a.clear();
-                    continue;
-                }
-                //println!("c: {:?}", a);
-            }
-            // let tokens = line.trim().split(' ');
-            // for t in tokens {
-            // 	let n = t.split(';');
-            // 	// println!("{:?}", n);
-            // 	for t in n {
-            // 		println!("{:?}", t);
-            // 	}
-            // }
+    pub fn keyword(&self) -> Keyword {
+        match self.raw.as_str() {
+            "class" => Keyword::Class,
+            "method" => Keyword::Method,
+            "class" => Keyword::Class,
+            "method" => Keyword::Method,
+            "function" => Keyword::Function,
+            "constructor" => Keyword::Constructor,
+            "int" => Keyword::Int,
+            "boolean" => Keyword::Boolean,
+            "char" => Keyword::Char,
+            "void" => Keyword::Void,
+            "var" => Keyword::Var,
+            "static" => Keyword::Static,
+            "field" => Keyword::Field,
+            "let" => Keyword::Let,
+            "do" => Keyword::Do,
+            "if" => Keyword::If,
+            "else" => Keyword::Else,
+            "while" => Keyword::While,
+            "return" => Keyword::Return,
+            "true" => Keyword::True,
+            "false" => Keyword::False,
+            "null" => Keyword::Null,
+            "this" => Keyword::This,
+            _ => Keyword::Unknown,
         }
     }
 }
 
-pub fn tokenize3(file: &File) {
-    println!("start analyze");
+#[derive(Debug)]
+pub struct Tokenizer {
+    tokens: Vec<Token>,
+    index: usize,
+}
+
+impl Tokenizer {
+    pub fn new(tokens: Vec<Token>) -> Tokenizer {
+        Tokenizer {
+            tokens: tokens,
+            index: 0,
+        }
+    }
+
+    pub fn has_more_tokens(&self) -> bool {
+        self.tokens.len() > self.index
+    }
+
+    pub fn advance(&mut self) -> Option<&Token> {
+        self.index += 1;
+        self.tokens.get(self.index)
+    }
+
+    pub fn current(&mut self) -> Option<&Token> {
+        self.tokens.get(self.index)
+    }
+}
+
+pub fn tokenize(file: &File) -> Tokenizer {
+    let mut tokens: Vec<Token> = vec![];
     for line in BufReader::new(file).lines() {
         if let Ok(l) = line {
             let line = trim_comment(&l);
@@ -68,20 +123,12 @@ pub fn tokenize3(file: &File) {
             let line_bytes = line.as_bytes();
             let mut i: usize = 0;
             while i < line_bytes.len() {
-                // 文字の判定
+                // 文字列
                 if line_bytes[i] == b'"' {
-                    // ”の次文字から見るため + 1
-                    let mut p = i + 1;
-                    if p >= line_bytes.len() {
-                        return;
-                    }
-                    while p < line_bytes.len() && line_bytes[p] != b'"' {
-                        p += 1;
-                    }
-                    let string_const = str::from_utf8(&line_bytes[(i + 1)..p]).unwrap();
-                    println!("string_const: {}", string_const);
-                    // ”の次文字から見るため + 1
-                    i = p + 1;
+                    let token = obtain_string_const(&line_bytes, i);
+                    // ダブルクォーテーションの数は除外して加算
+                    i += token.raw.len() + 2;
+                    tokens.push(token);
                     continue;
                 }
                 // 文字の判定
@@ -90,44 +137,53 @@ pub fn tokenize3(file: &File) {
                     while line_bytes[p].is_ascii_alphanumeric() {
                         p += 1;
                     }
-                    // ここからキーワードを除外する
                     let str = str::from_utf8(&line_bytes[i..p]).unwrap();
-                    println!("{}", str);
+                    if is_num(&str) {
+                        let token = Token::new(str.to_string(), TokenType::IntConst);
+                        i += token.raw.len();
+                        tokens.push(token);
+                        continue;
+                    }
+                    if is_keyword(str) {
+                        let token = Token::new(str.to_string(), TokenType::Keyword);
+                        i += token.raw.len();
+                        tokens.push(token);
+                        continue;
+                    }
+                    let token = Token::new(str.to_string(), TokenType::Identifier);
                     i = p;
+                    tokens.push(token);
+                    continue;
+                }
+                if is_symbol(&line_bytes[i]) {
+                    let token = obtain_symbol(&line_bytes, i);
+                    i += token.raw.len();
+                    tokens.push(token);
                     continue;
                 }
                 i += 1;
             }
         }
     }
+    return Tokenizer::new(tokens);
 }
 
-pub fn tokenize2(file: &File) {
-    println!("start analyze");
-    let mut buf_reader = BufReader::new(file);
-    let mut contents = String::new();
-    buf_reader
-        .read_to_string(&mut contents)
-        .expect("read error");
-    println!("num: {:?}", contents);
-    let mut i: usize = 0;
-    let mut buf = contents.as_bytes();
-    while i < buf.len() {
-        if buf[i] == b'/' && !(i + 1 >= buf.len()) && buf[i + 1] == b'/' {
-            println!("break line {}", buf[i]);
-        }
-        i += 1;
+fn obtain_string_const(bytes: &[u8], index: usize) -> Token {
+    let start = index + 1;
+    let mut p = start;
+    if p >= bytes.len() {
+        panic!("end quotation not found");
     }
+    while p < bytes.len() && bytes[p] != b'"' {
+        p += 1;
+    }
+    let str = str::from_utf8(&bytes[start..p]).unwrap();
+    Token::new(str.to_string(), TokenType::StringConst)
 }
 
-fn tokenize_id(chars: &mut Vec<char>) {
-    if chars.is_empty() {
-        return;
-    }
-    let is_num = chars.iter().all(|c| c >= &'0' && c <= &'9');
-    let is_alpha = chars.iter().all(|c| c >= &'0' && c <= &'9');
-    println!("num: {:?}, is_num: {}", chars, is_num);
-    chars.clear();
+fn obtain_symbol(bytes: &[u8], index: usize) -> Token {
+    let str = str::from_utf8(&bytes[index..index + 1]).unwrap();
+    Token::new(str.to_string(), TokenType::Symbol)
 }
 
 pub fn trim_comment(code: &str) -> String {
@@ -137,10 +193,6 @@ pub fn trim_comment(code: &str) -> String {
     let trim = Regex::new(r".*\*/").unwrap().replace_all(&trim, "");
     return trim.to_string();
 }
-
-// fn is_alpha();
-// fn is_alnum();
-// fn is_digit();
 
 fn is_keyword(token: &str) -> bool {
     [
@@ -169,12 +221,17 @@ fn is_keyword(token: &str) -> bool {
     .contains(&token)
 }
 
-fn is_symbol(token: &str) -> bool {
+fn is_num(str: &str) -> bool {
+    let r: Result<i32, ParseIntError> = str.parse();
+    r.is_ok()
+}
+
+fn is_symbol(byte: &u8) -> bool {
     [
-        "{", "}", "(", ")", "[", "]", ".", ",", ";", "+", "-", "*", "/", "&", "|", "<", ">", "=",
-        "~",
+        b'{', b'}', b'(', b')', b'[', b']', b'.', b',', b';', b'+', b'-', b'*', b'/', b'&', b'|',
+        b'<', b'>', b'=', b'~',
     ]
-    .contains(&token)
+    .contains(byte)
 }
 
 #[cfg(test)]
@@ -216,6 +273,117 @@ mod tests {
             let query = " comment*/ var int i;";
             let res = trim_comment(&query);
             assert_eq!(res, " var int i;")
+        }
+    }
+
+    mod token {
+        use super::*;
+
+        #[test]
+        fn test_keyword() {
+            let t = Token::new("class".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Class);
+            let t = Token::new("method".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Method);
+            let t = Token::new("function".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Function);
+            let t = Token::new("constructor".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Constructor);
+            let t = Token::new("int".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Int);
+            let t = Token::new("boolean".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Boolean);
+            let t = Token::new("char".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Char);
+            let t = Token::new("void".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Void);
+            let t = Token::new("var".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Var);
+            let t = Token::new("static".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Static);
+            let t = Token::new("field".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Field);
+            let t = Token::new("let".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Let);
+            let t = Token::new("do".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Do);
+            let t = Token::new("if".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::If);
+            let t = Token::new("else".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Else);
+            let t = Token::new("while".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::While);
+            let t = Token::new("return".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Return);
+            let t = Token::new("true".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::True);
+            let t = Token::new("false".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::False);
+            let t = Token::new("null".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::Null);
+            let t = Token::new("this".to_string(), TokenType::Keyword);
+            assert_eq!(t.keyword(), Keyword::This);
+        }
+    }
+
+    mod tokenizer {
+        use super::*;
+
+        mod has_more_tokens {
+            use super::*;
+
+            #[test]
+            fn return_true_if_more_than_one() {
+                let tokens = vec![Token::new("do".to_string(), TokenType::Keyword)];
+                let target = Tokenizer::new(tokens);
+                assert_eq!(target.has_more_tokens(), true);
+            }
+
+            #[test]
+            fn return_false_if_empty() {
+                assert_eq!(Tokenizer::new(vec![]).has_more_tokens(), false);
+            }
+        }
+
+        mod current {
+            use super::*;
+
+            #[test]
+            fn return_first_token() {
+                let tokens = vec![Token::new("do".to_string(), TokenType::Keyword)];
+                let mut target = Tokenizer::new(tokens);
+                assert_eq!(target.current().is_some(), true);
+                assert_eq!(target.current().unwrap().raw, "do");
+            }
+
+            #[test]
+            fn return_none() {
+                let tokens = vec![];
+                let mut target = Tokenizer::new(tokens);
+                assert_eq!(target.current().is_none(), true);
+            }
+        }
+
+        mod advance {
+            use super::*;
+
+            #[test]
+            fn return_next_token() {
+                let tokens = vec![
+                    Token::new("do".to_string(), TokenType::Keyword),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                ];
+                let mut target = Tokenizer::new(tokens);
+                assert_eq!(target.advance().is_some(), true);
+                assert_eq!(target.current().unwrap().raw, "var");
+            }
+
+            #[test]
+            fn return_none() {
+                let tokens = vec![Token::new("do".to_string(), TokenType::Keyword)];
+                let mut target = Tokenizer::new(tokens);
+                assert_eq!(target.advance().is_none(), true);
+            }
         }
     }
 }
