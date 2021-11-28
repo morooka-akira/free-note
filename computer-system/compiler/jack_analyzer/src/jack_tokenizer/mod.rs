@@ -81,6 +81,10 @@ impl Token {
             _ => Keyword::Unknown,
         }
     }
+
+    pub fn is_operator(&self) -> bool {
+        ["+", "-", "*", "/", "&", "|", "<", ">", "="].contains(&self.raw.as_str())
+    }
 }
 
 #[derive(Debug)]
@@ -323,6 +327,21 @@ mod tests {
             assert_eq!(t.keyword(), Keyword::Null);
             let t = Token::new("this".to_string(), TokenType::Keyword);
             assert_eq!(t.keyword(), Keyword::This);
+        }
+
+        #[test]
+        fn test_is_operator() {
+            for op in ["+", "-", "*", "/", "&", "|", "<", ">", "="] {
+                let t = Token::new(op.to_string(), TokenType::Symbol);
+                assert_eq!(t.is_operator(), true);
+            }
+
+            for not_op in [
+                "if", "else", "while", "return", "true", "false", "null", "this",
+            ] {
+                let t = Token::new(not_op.to_string(), TokenType::Keyword);
+                assert_eq!(t.is_operator(), false)
+            }
         }
     }
 
