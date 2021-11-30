@@ -1,0 +1,15 @@
+{
+  "name": "rustdevcontainer",
+  "dockerFile": "Dockerfile",
+  "extensions": [
+	"matklad.rust-analyzer",
+	"rust-lang.rust"
+],
+  "settings": {
+    "terminal.integrated.profiles.linux": {
+		"bash": {
+			"path": "/bin/bash",
+		},
+	}
+  }
+}

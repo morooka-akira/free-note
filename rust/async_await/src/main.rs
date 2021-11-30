@@ -8,8 +8,7 @@ use nix::{
     errno::Errno,
     sys::{
         epoll::{
-            epoll_create1, epoll_ctl, epoll_wait,
-            EpollCreateFlags, EpollEvent, EpollFlags, EpollOp,
+            epoll_create1, epoll_ctl, epoll_wait, EpollCreateFlags, EpollEvent, EpollFlags, EpollOp,
         },
         eventfd::{eventfd, EfdFlags}, // eventfd用のインポート <1>
     },
@@ -36,12 +35,7 @@ fn main() {
 fn write_eventfd(fd: RawFd, n: usize) {
     // usizeを*const u8に変換
     let ptr = &n as *const usize as *const u8;
-    let val = unsafe { 
-        std::slice::from_raw_parts(
-            ptr, 
-            std::mem::size_of_val(&n) 
-        )
-    };
+    let val = unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of_val(&n)) };
     write(fd, &val).unwrap();
 }
 
