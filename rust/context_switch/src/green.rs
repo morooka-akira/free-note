@@ -1,7 +1,7 @@
 use nix::sys::mman::{mprotect, ProtFlags};
 use rand;
 use std::alloc::{alloc, dealloc, Layout};
-use std::coolections::{HashMap, HashSet, LinkedList};
+use std::collections::{HashMap, HashSet, LinkedList};
 use std::ffi::c_void;
 use std::ptr;
 
@@ -91,7 +91,7 @@ impl Context {
     }
 
     fn new(func: Entry, stack_size: usize, id: u64) -> Self {
-        let layout = Layout::from_size_align(stack_size, PAGE_SISE).unwrap();
+        let layout = Layout::from_size_align(stack_size, PAGE_SIZE).unwrap();
         let stack = unsafe { alloc(layout) };
 
         // ガードページの設定
@@ -101,7 +101,7 @@ impl Context {
         Context {
             regs: regs,
             stack: stack,
-            stack_layout: lyout,
+            stack_layout: layout,
             entry: func,
             id: id,
         }
@@ -109,7 +109,7 @@ impl Context {
 }
 
 // 全てのスレッド終了時に戻ってくる先
-static mut CTX_MAIN: Option<Box<Register>> = None;
+static mut CTX_MAIN: Option<Box<Registers>> = None;
 
 // 不要なスタック領域
 static mut UNUSED_STACK: (*mut u8, Layout) = (ptr::null_mut(), Layout::new::<u8>());
@@ -181,5 +181,54 @@ extern "C" fn entry_point() {
             }
         };
     }
-    panic("entry_point");
+    panic!("entry_point");
+}
+
+struct MappedList<T> {
+    map: HashMap<u64, LinkedList<T>>,
+}
+
+pub fn spawn_from_main(func: Entry, stack_size: usize) {
+    unsafe {
+        if let Some(_) = &CTX_MAIN {
+            panic!("spawn_from_main is called twice");
+        }
+
+        CTX_MAIN = Some(Box::new(Registers::new(0)));
+        if let Some(ctx) = &mut CTX_MAIN {
+            let mut msgs = MappedList::new();
+            MESSAGES = &mut msgs as *mut MappedList<u64>;
+
+            let mut waiting = HashMap::new();
+            WAITING = &mut waiting as *mut HashMap<u64, Box<Context>>;
+
+            let mut ids = HashSet::new();
+            ID = &mut ids as *mut HashSet<u64>;
+
+            if set_context(&mut **ctx as *mut Registers) == 0 {
+                CONTEXTS.push_back(Box::new(Context::new(func, stack_size, get_id())));
+                let first = CONTEXTS.front().unwrap();
+                switch_context(first.get_regs());
+            }
+
+            rm_unused_stack();
+
+            CTX_MAIN = None;
+            CONTEXTS.clear();
+            MESSAGES = ptr::null_mut();
+        }
+    }
+}
+
+unsafe fn rm_unused_stack() {
+    if UNUSED_STACK.0 != ptr::null_mut() {
+        mprotect(
+            UNUSED_STACK.0 as *mut c_void,
+            PAGE_SIZE,
+            ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
+        )
+        .unwrap();
+        dealloc(UNUSED_STACK.0, UNUSED_STACK.1);
+        UNUSED_STACK = (ptr::null_mut(), Layout::new::<u8>());
+    }
 }
