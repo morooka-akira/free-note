@@ -13,6 +13,27 @@ impl<'a> CompileEngine<'a> {
         }
     }
 
+    // return expression? ;
+    fn compile_return(&mut self) {
+        self.output.push("<returnStatement>".to_string());
+        // return
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // expression?
+        match self.tokenizer.current() {
+            Some(token) => {
+                if token.raw != ";" {
+                    self.compile_expression();
+                }
+            }
+            None => {}
+        }
+        // ;
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</returnStatement>".to_string());
+    }
+
     // (expression (',' expression))
     fn compile_expression_list(&mut self) {
         self.output.push("<expressionList>".to_string());
@@ -359,6 +380,60 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_return {
+            use super::*;
+
+            #[test]
+            fn test_only_return() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_return();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                    ]
+                )
+            }
+
+            #[test]
+            fn test_with_expression() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new("this".to_string(), TokenType::Keyword),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_return();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<expression>",
+                        "<term>",
+                        "<keyword> this </keyword>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                    ]
+                )
+            }
         }
 
         mod compile_term {
