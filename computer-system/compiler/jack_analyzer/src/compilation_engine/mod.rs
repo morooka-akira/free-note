@@ -13,6 +13,18 @@ impl<'a> CompileEngine<'a> {
         }
     }
 
+    fn compile_do(&mut self) {
+        self.output.push("<doStatement>".to_string());
+        // do
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.compile_subroutine_call();
+        // ;
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</doStatement>".to_string());
+    }
+
     // return expression? ;
     fn compile_return(&mut self) {
         self.output.push("<returnStatement>".to_string());
@@ -38,17 +50,21 @@ impl<'a> CompileEngine<'a> {
     fn compile_expression_list(&mut self) {
         self.output.push("<expressionList>".to_string());
         self.compile_expression();
-        match self.tokenizer.current() {
-            Some(token) => {
-                // ,がついている場合は再帰で自分を呼ぶ
-                if token.raw == "," {
-                    self.output.push(get_xml(token));
-                    self.tokenizer.advance();
-                    self.compile_expression_list();
+        loop {
+            match self.tokenizer.current() {
+                Some(token) => {
+                    // ,がついている場合は再帰で自分を呼ぶ
+                    if token.raw == "," {
+                        self.output.push(get_xml(token));
+                        self.tokenizer.advance();
+                        self.compile_expression();
+                    } else {
+                        break;
+                    }
                 }
-            }
-            None => {
-                println!("current no exists")
+                None => {
+                    break;
+                }
             }
         }
         self.output.push("</expressionList>".to_string());
@@ -148,7 +164,6 @@ impl<'a> CompileEngine<'a> {
                     self.output.push(get_xml(self.tokenizer.current().unwrap()));
                     self.tokenizer.advance();
                 }
-                // integerConstant | stringConstant
                 _ => {
                     let xml = get_xml(self.tokenizer.current().unwrap());
                     println!("next term: {}", xml);
@@ -156,6 +171,51 @@ impl<'a> CompileEngine<'a> {
             }
         }
         self.output.push("</term>".to_string());
+    }
+
+    fn compile_subroutine_call(&mut self) {
+        // subroutine Name | (className | varName)
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        match self.tokenizer.current() {
+            Some(token) => {
+                match token.raw.as_str() {
+                    // subroutineName ( expressionList )
+                    "(" => {
+                        // (
+                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        // expression list
+                        self.tokenizer.advance();
+                        self.compile_expression_list();
+                        // )
+                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.tokenizer.advance();
+                    }
+                    // (className | varName) . subroutineName (expressionList)
+                    "." => {
+                        // .
+                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.tokenizer.advance();
+                        // subroutine name
+                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        // (
+                        self.tokenizer.advance();
+                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        // expression list
+                        self.tokenizer.advance();
+                        self.compile_expression_list();
+                        // )
+                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.tokenizer.advance();
+                    }
+                    _ => {
+                        let xml = get_xml(self.tokenizer.current().unwrap());
+                        println!("next term: {}", xml);
+                    }
+                }
+            }
+            None => {}
+        }
     }
 }
 
@@ -319,11 +379,6 @@ fn compile_let(tokenizer: &mut Tokenizer) {
     println!("</letStatement>");
 }
 
-fn compile_subroutine_call(tokenizer: &mut Tokenizer) {}
-
-// (expression (',' expression))
-fn compile_expression_list(tokenizer: &mut Tokenizer) {}
-
 fn get_xml(token: &Token) -> String {
     let fix_token = xml_encode(&token.raw);
     match token.token_type {
@@ -380,6 +435,76 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_do {
+            use super::*;
+
+            #[test]
+            fn test_with_var_name() {
+                // do Screen.drawRectangle(x, y, x, y);
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("do".to_string(), TokenType::Keyword),
+                    Token::new("Screen".to_string(), TokenType::Identifier),
+                    Token::new(".".to_string(), TokenType::Symbol),
+                    Token::new("drawRectangle".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("x".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("y".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("x".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("y".to_string(), TokenType::Identifier),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_do();
+                println!("{:?}", output);
+
+                assert_eq!(
+                    output,
+                    [
+                        "<doStatement>",
+                        "<keyword> do </keyword>",
+                        "<identifier> Screen </identifier>",
+                        "<symbol> . </symbol>",
+                        "<identifier> drawRectangle </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<expressionList>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> x </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> , </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> y </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> , </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> x </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> , </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> y </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "</expressionList>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> ; </symbol>",
+                        "</doStatement>",
+                    ]
+                )
+            }
         }
 
         mod compile_return {
