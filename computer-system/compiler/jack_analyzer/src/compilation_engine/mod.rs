@@ -14,21 +14,51 @@ impl<'a> CompileEngine<'a> {
     }
 
     // letStatement | ifStatement | whileStatement | doStatement | returnStatement
-    fn compile_statement(&mut self) {
-        match self.tokenizer.current() {
-            Some(token) => match token.token_type {
-                TokenType::Keyword => match token.keyword() {
-                    Keyword::Let => self.compile_let(),
-                    Keyword::If => self.compile_if(),
-                    Keyword::While => self.compile_while(),
-                    Keyword::Do => self.compile_do(),
-                    Keyword::Return => self.compile_return(),
-                    _ => panic!("unexpected keyword: {:?}", token),
+    fn compile_statements(&mut self) {
+        self.output.push("<statements>".to_string());
+        loop {
+            if self.tokenizer.current().unwrap().raw == "}" {
+                break;
+            }
+            match self.tokenizer.current() {
+                Some(token) => match token.token_type {
+                    TokenType::Keyword => match token.keyword() {
+                        Keyword::Let => self.compile_let(),
+                        Keyword::If => self.compile_if(),
+                        Keyword::While => self.compile_while(),
+                        Keyword::Do => self.compile_do(),
+                        Keyword::Return => self.compile_return(),
+                        _ => panic!("unexpected keyword: {:?}", token),
+                    },
+                    _ => panic!("unexpected token: {:?}", token),
                 },
-                _ => panic!("unexpected token: {:?}", token),
-            },
-            None => {}
+                None => {}
+            }
         }
+        self.output.push("</statements>".to_string());
+    }
+
+    // 'while' '(' expression ')' '{' statements '}'
+    fn compile_while(&mut self) {
+        self.output.push("<whileStatement>".to_string());
+        // while
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // (
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.compile_expression();
+        // )
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // {
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.compile_statements();
+        // }
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</whileStatement>".to_string());
     }
 
     // 'let' varName ('[' expression ']')? '=' expression ';'
@@ -66,9 +96,6 @@ impl<'a> CompileEngine<'a> {
     }
 
     fn compile_if(&mut self) {}
-
-    // 'while' '(' expression ')' '{' statements '}'
-    fn compile_while(&mut self) {}
 
     // 'do' subroutineCall ';'
     fn compile_do(&mut self) {
@@ -280,74 +307,74 @@ impl<'a> CompileEngine<'a> {
 pub fn compile(tokenizer: &mut Tokenizer) {
     let mut output: Vec<String> = vec![];
     let engine = CompileEngine::new(tokenizer, &mut output);
-    compile_class(tokenizer, &mut output);
+    // compile_class(tokenizer, &mut output);
 }
 
-fn compile_class(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
-    if !tokenizer.has_more_tokens() {
-        panic!("class not found")
-    }
-    let token = tokenizer.current().unwrap();
-    if token.keyword() != Keyword::Class {
-        panic!("class not found")
-    }
-    output.push("<class>".to_string());
-    // class name
-    if tokenizer.advance().is_some() {
-        output.push(get_xml(tokenizer.current().unwrap()));
-    }
-    // symbol {
-    if tokenizer.advance().is_some() {
-        output.push(get_xml(tokenizer.current().unwrap()));
-    }
-    tokenizer.advance();
+// fn compile_class(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
+//     if !tokenizer.has_more_tokens() {
+//         panic!("class not found")
+//     }
+//     let token = tokenizer.current().unwrap();
+//     if token.keyword() != Keyword::Class {
+//         panic!("class not found")
+//     }
+//     output.push("<class>".to_string());
+//     // class name
+//     if tokenizer.advance().is_some() {
+//         output.push(get_xml(tokenizer.current().unwrap()));
+//     }
+//     // symbol {
+//     if tokenizer.advance().is_some() {
+//         output.push(get_xml(tokenizer.current().unwrap()));
+//     }
+//     tokenizer.advance();
 
-    while tokenizer.has_more_tokens() {
-        let token = tokenizer.current().unwrap();
-        if TokenType::Keyword != token.token_type {
-            panic!("keyword not found")
-        }
-        match token.keyword() {
-            Keyword::Field => println!("it is Field"),
-            Keyword::Method | Keyword::Function | Keyword::Constructor => {
-                compile_subroutine(tokenizer, output);
-            }
-            Keyword::Static => println!("it is Static"),
-            _ => println!("unknown Keyword"),
-        }
-        tokenizer.advance();
-    }
-    output.push("</class>".to_string());
-}
+//     while tokenizer.has_more_tokens() {
+//         let token = tokenizer.current().unwrap();
+//         if TokenType::Keyword != token.token_type {
+//             panic!("keyword not found")
+//         }
+//         match token.keyword() {
+//             Keyword::Field => println!("it is Field"),
+//             Keyword::Method | Keyword::Function | Keyword::Constructor => {
+//                 compile_subroutine(tokenizer, output);
+//             }
+//             Keyword::Static => println!("it is Static"),
+//             _ => println!("unknown Keyword"),
+//         }
+//         tokenizer.advance();
+//     }
+//     output.push("</class>".to_string());
+// }
 
-fn compile_subroutine(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
-    output.push("<subroutineDec>".to_string());
+// fn compile_subroutine(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
+//     output.push("<subroutineDec>".to_string());
 
-    // function or method or constructor
-    let token = tokenizer.current().unwrap();
-    output.push(get_xml(token));
+//     // function or method or constructor
+//     let token = tokenizer.current().unwrap();
+//     output.push(get_xml(token));
 
-    if token.keyword() == Keyword::Function {
-        // void | type
-        if tokenizer.advance().is_some() {
-            output.push(get_xml(tokenizer.current().unwrap()));
-        }
-        // function name
-        if tokenizer.advance().is_some() {
-            output.push(get_xml(tokenizer.current().unwrap()));
-        }
-        // (
-        if tokenizer.advance().is_some() {
-            output.push(get_xml(tokenizer.current().unwrap()));
-        }
-        // parameter
-        compile_parameter_list(tokenizer, output);
-        // )
-        output.push(get_xml(tokenizer.current().unwrap()));
-        compile_subroutine_body(tokenizer);
-    }
-    output.push("</subroutineDec>".to_string());
-}
+//     if token.keyword() == Keyword::Function {
+//         // void | type
+//         if tokenizer.advance().is_some() {
+//             output.push(get_xml(tokenizer.current().unwrap()));
+//         }
+//         // function name
+//         if tokenizer.advance().is_some() {
+//             output.push(get_xml(tokenizer.current().unwrap()));
+//         }
+//         // (
+//         if tokenizer.advance().is_some() {
+//             output.push(get_xml(tokenizer.current().unwrap()));
+//         }
+//         // parameter
+//         compile_parameter_list(tokenizer, output);
+//         // )
+//         output.push(get_xml(tokenizer.current().unwrap()));
+//         compile_subroutine_body(tokenizer);
+//     }
+//     output.push("</subroutineDec>".to_string());
+// }
 
 fn compile_parameter_list(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
     output.push("<parameterList>".to_string());
@@ -358,31 +385,31 @@ fn compile_parameter_list(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
     output.push("</parameterList>".to_string());
 }
 
-fn compile_subroutine_body(tokenizer: &mut Tokenizer) {
-    // output.push("</subroutineBody>".to_string());
-    // {
-    if let Some(token) = tokenizer.advance() {
-        println!("{}", get_xml(token));
-    }
-    tokenizer.advance();
-    while tokenizer.has_more_tokens() {
-        if let Some(token) = tokenizer.current() {
-            if TokenType::Keyword != token.token_type {
-                panic!("keyword not found")
-            }
-            match token.keyword() {
-                Keyword::Var => compile_var_dec(tokenizer),
-                _ => compile_statements(tokenizer),
-            }
-        }
-        tokenizer.advance();
-    }
-    // }
-    if let Some(token) = tokenizer.advance() {
-        println!("{}", get_xml(token));
-    }
-    println!("</subroutineBody>");
-}
+// fn compile_subroutine_body(tokenizer: &mut Tokenizer) {
+//     // output.push("</subroutineBody>".to_string());
+//     // {
+//     if let Some(token) = tokenizer.advance() {
+//         println!("{}", get_xml(token));
+//     }
+//     tokenizer.advance();
+//     while tokenizer.has_more_tokens() {
+//         if let Some(token) = tokenizer.current() {
+//             if TokenType::Keyword != token.token_type {
+//                 panic!("keyword not found")
+//             }
+//             match token.keyword() {
+//                 Keyword::Var => compile_var_dec(tokenizer),
+//                 _ => compile_statements(tokenizer),
+//             }
+//         }
+//         tokenizer.advance();
+//     }
+//     // }
+//     if let Some(token) = tokenizer.advance() {
+//         println!("{}", get_xml(token));
+//     }
+//     println!("</subroutineBody>");
+// }
 
 fn compile_var_dec(tokenizer: &mut Tokenizer) {
     println!("<varDec>");
@@ -402,40 +429,40 @@ fn compile_var_dec(tokenizer: &mut Tokenizer) {
     println!("</varDec>");
 }
 
-fn compile_statements(tokenizer: &mut Tokenizer) {
-    println!("<statements>");
-    while tokenizer.has_more_tokens() {
-        if let Some(token) = tokenizer.current() {
-            if TokenType::Keyword != token.token_type {
-                panic!("keyword not found")
-            }
-            match token.keyword() {
-                Keyword::Let => compile_let(tokenizer),
-                _ => println!("other words"),
-            }
-        }
-        tokenizer.advance();
-    }
-    println!("</statements>");
-}
+// fn compile_statements(tokenizer: &mut Tokenizer) {
+//     println!("<statements>");
+//     while tokenizer.has_more_tokens() {
+//         if let Some(token) = tokenizer.current() {
+//             if TokenType::Keyword != token.token_type {
+//                 panic!("keyword not found")
+//             }
+//             match token.keyword() {
+//                 Keyword::Let => compile_let(tokenizer),
+//                 _ => println!("other words"),
+//             }
+//         }
+//         tokenizer.advance();
+//     }
+//     println!("</statements>");
+// }
 
-fn compile_let(tokenizer: &mut Tokenizer) {
-    println!("<letStatement>");
-    // let
-    println!("{}", get_xml(tokenizer.current().unwrap()));
-    // var name
-    if let Some(token) = tokenizer.advance() {
-        println!("{}", get_xml(token));
-    }
-    // [] がある場合は添字の処理
-    if let Some(token) = tokenizer.advance() {
-        if token.raw == "[" {
-            println!("{}", get_xml(token));
-            tokenizer.advance();
-        }
-    }
-    println!("</letStatement>");
-}
+// fn compile_let(tokenizer: &mut Tokenizer) {
+//     println!("<letStatement>");
+//     // let
+//     println!("{}", get_xml(tokenizer.current().unwrap()));
+//     // var name
+//     if let Some(token) = tokenizer.advance() {
+//         println!("{}", get_xml(token));
+//     }
+//     // [] がある場合は添字の処理
+//     if let Some(token) = tokenizer.advance() {
+//         if token.raw == "[" {
+//             println!("{}", get_xml(token));
+//             tokenizer.advance();
+//         }
+//     }
+//     println!("</letStatement>");
+// }
 
 fn get_xml(token: &Token) -> String {
     let fix_token = xml_encode(&token.raw);
@@ -493,6 +520,110 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_while {
+            use super::*;
+
+            #[test]
+            fn test_normal() {
+                // while (i < length) {
+                //     let sum = sum + a[i];
+                //     let i = i + 1;
+                // }
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("while".to_string(), TokenType::Keyword),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("<".to_string(), TokenType::Symbol),
+                    Token::new("length".to_string(), TokenType::Identifier),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("sum".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("sum".to_string(), TokenType::Identifier),
+                    Token::new("+".to_string(), TokenType::Symbol),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new("[".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("]".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("+".to_string(), TokenType::Symbol),
+                    Token::new("1".to_string(), TokenType::IntConst),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_while();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<whileStatement>",
+                        "<keyword> while </keyword>",
+                        "<symbol> ( </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "<symbol> &lt; </symbol>",
+                        "<term>",
+                        "<identifier> length </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> sum </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> sum </identifier>",
+                        "</term>",
+                        "<symbol> + </symbol>",
+                        "<term>",
+                        "<identifier> a </identifier>",
+                        "<symbol> [ </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ] </symbol>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "<symbol> + </symbol>",
+                        "<term>",
+                        "<integerConstant> 1 </integerConstant>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</whileStatement>",
+                    ]
+                )
+            }
         }
 
         mod compile_let {
