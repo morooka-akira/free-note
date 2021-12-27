@@ -13,6 +13,64 @@ impl<'a> CompileEngine<'a> {
         }
     }
 
+    // letStatement | ifStatement | whileStatement | doStatement | returnStatement
+    fn compile_statement(&mut self) {
+        match self.tokenizer.current() {
+            Some(token) => match token.token_type {
+                TokenType::Keyword => match token.keyword() {
+                    Keyword::Let => self.compile_let(),
+                    Keyword::If => self.compile_if(),
+                    Keyword::While => self.compile_while(),
+                    Keyword::Do => self.compile_do(),
+                    Keyword::Return => self.compile_return(),
+                    _ => panic!("unexpected keyword: {:?}", token),
+                },
+                _ => panic!("unexpected token: {:?}", token),
+            },
+            None => {}
+        }
+    }
+
+    // 'let' varName ('[' expression ']')? '=' expression ';'
+    fn compile_let(&mut self) {
+        self.output.push("<letStatement>".to_string());
+        // let
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // varName
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        match self.tokenizer.current() {
+            Some(token) => {
+                if token.raw == "[" {
+                    // '[' expression ']'
+                    // [
+                    self.output.push(get_xml(token));
+                    self.tokenizer.advance();
+                    self.compile_expression();
+                    // ]
+                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.tokenizer.advance();
+                }
+            }
+            None => {}
+        }
+        // =
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.compile_expression();
+        // :
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</letStatement>".to_string());
+    }
+
+    fn compile_if(&mut self) {}
+
+    // 'while' '(' expression ')' '{' statements '}'
+    fn compile_while(&mut self) {}
+
+    // 'do' subroutineCall ';'
     fn compile_do(&mut self) {
         self.output.push("<doStatement>".to_string());
         // do
@@ -435,6 +493,105 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_let {
+            use super::*;
+
+            #[test]
+            fn test_normal() {
+                // let size = Asize;
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("size".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("Asize".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_let();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> size </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> Asize </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                    ]
+                )
+            }
+
+            #[test]
+            fn test_with_brackets() {
+                // let size = Asize;
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new("[".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("]".to_string(), TokenType::Symbol),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("Keyboard".to_string(), TokenType::Identifier),
+                    Token::new(".".to_string(), TokenType::Symbol),
+                    Token::new("readInt".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(
+                        "ENTER THE NEXT NUMBER: ".to_string(),
+                        TokenType::StringConst,
+                    ),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_let();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> a </identifier>",
+                        "<symbol> [ </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ] </symbol>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> Keyboard </identifier>",
+                        "<symbol> . </symbol>",
+                        "<identifier> readInt </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<expressionList>",
+                        "<expression>",
+                        "<term>",
+                        "<stringConstant> ENTER THE NEXT NUMBER:  </stringConstant>",
+                        "</term>",
+                        "</expression>",
+                        "</expressionList>",
+                        "<symbol> ) </symbol>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                    ]
+                )
+            }
         }
 
         mod compile_do {
