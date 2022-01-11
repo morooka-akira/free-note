@@ -47,6 +47,7 @@ impl<'a> CompileEngine<'a> {
         // (
         self.output.push(get_xml(self.tokenizer.current().unwrap()));
         self.tokenizer.advance();
+        // expression
         self.compile_expression();
         // )
         self.output.push(get_xml(self.tokenizer.current().unwrap()));
@@ -54,6 +55,7 @@ impl<'a> CompileEngine<'a> {
         // {
         self.output.push(get_xml(self.tokenizer.current().unwrap()));
         self.tokenizer.advance();
+        // statements
         self.compile_statements();
         // }
         self.output.push(get_xml(self.tokenizer.current().unwrap()));
@@ -95,7 +97,50 @@ impl<'a> CompileEngine<'a> {
         self.output.push("</letStatement>".to_string());
     }
 
-    fn compile_if(&mut self) {}
+    fn compile_if(&mut self) {
+        self.output.push("<ifStatement>".to_string());
+        // if
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // (
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // expression
+        self.compile_expression();
+        // )
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // {
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // statements
+        self.compile_statements();
+        // }
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+
+        match self.tokenizer.current() {
+            Some(token) => {
+                if token.raw == "else" {
+                    // else '{' statements '}'
+                    // else
+                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.tokenizer.advance();
+                    // {
+                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.tokenizer.advance();
+                    // statements
+                    self.compile_statements();
+                    // }
+                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.tokenizer.advance();
+                }
+            }
+            None => {}
+        }
+
+        self.output.push("</ifStatement>".to_string());
+    }
 
     // 'do' subroutineCall ';'
     fn compile_do(&mut self) {
@@ -520,6 +565,176 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_if {
+            use super::*;
+
+            #[test]
+            fn test_normal() {
+                // if (i) {
+                //     let s = i;
+                //     let s = j;
+                //     let a[i] = j;
+                // }
+                // else {
+                //     let i = i;
+                //     let j = j;
+                //     let i = i | j;
+                // }
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("if".to_string(), TokenType::Keyword),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new("[".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("]".to_string(), TokenType::Symbol),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("else".to_string(), TokenType::Keyword),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("|".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_if();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<ifStatement>",
+                        "<keyword> if </keyword>",
+                        "<symbol> ( </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> s </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> s </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> a </identifier>",
+                        "<symbol> [ </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ] </symbol>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "<keyword> else </keyword>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> j </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "<symbol> | </symbol>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</ifStatement>",
+                    ]
+                )
+            }
         }
 
         mod compile_while {
