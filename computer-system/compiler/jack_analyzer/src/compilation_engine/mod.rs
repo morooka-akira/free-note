@@ -38,6 +38,31 @@ impl<'a> CompileEngine<'a> {
         self.output.push("</statements>".to_string());
     }
 
+    // 'var' type varName (',' varName)* ';'
+    fn compile_var_dec(&mut self) {
+        self.output.push("<varDec>".to_string());
+        // var
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // type
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // varName
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        loop {
+            if self.tokenizer.current().unwrap().raw == ";" {
+                break;
+            }
+            self.output.push(get_xml(self.tokenizer.current().unwrap()));
+            self.tokenizer.advance();
+        }
+        // ;
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</varDec>".to_string());
+    }
+
     // 'while' '(' expression ')' '{' statements '}'
     fn compile_while(&mut self) {
         self.output.push("<whileStatement>".to_string());
@@ -355,72 +380,6 @@ pub fn compile(tokenizer: &mut Tokenizer) {
     // compile_class(tokenizer, &mut output);
 }
 
-// fn compile_class(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
-//     if !tokenizer.has_more_tokens() {
-//         panic!("class not found")
-//     }
-//     let token = tokenizer.current().unwrap();
-//     if token.keyword() != Keyword::Class {
-//         panic!("class not found")
-//     }
-//     output.push("<class>".to_string());
-//     // class name
-//     if tokenizer.advance().is_some() {
-//         output.push(get_xml(tokenizer.current().unwrap()));
-//     }
-//     // symbol {
-//     if tokenizer.advance().is_some() {
-//         output.push(get_xml(tokenizer.current().unwrap()));
-//     }
-//     tokenizer.advance();
-
-//     while tokenizer.has_more_tokens() {
-//         let token = tokenizer.current().unwrap();
-//         if TokenType::Keyword != token.token_type {
-//             panic!("keyword not found")
-//         }
-//         match token.keyword() {
-//             Keyword::Field => println!("it is Field"),
-//             Keyword::Method | Keyword::Function | Keyword::Constructor => {
-//                 compile_subroutine(tokenizer, output);
-//             }
-//             Keyword::Static => println!("it is Static"),
-//             _ => println!("unknown Keyword"),
-//         }
-//         tokenizer.advance();
-//     }
-//     output.push("</class>".to_string());
-// }
-
-// fn compile_subroutine(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
-//     output.push("<subroutineDec>".to_string());
-
-//     // function or method or constructor
-//     let token = tokenizer.current().unwrap();
-//     output.push(get_xml(token));
-
-//     if token.keyword() == Keyword::Function {
-//         // void | type
-//         if tokenizer.advance().is_some() {
-//             output.push(get_xml(tokenizer.current().unwrap()));
-//         }
-//         // function name
-//         if tokenizer.advance().is_some() {
-//             output.push(get_xml(tokenizer.current().unwrap()));
-//         }
-//         // (
-//         if tokenizer.advance().is_some() {
-//             output.push(get_xml(tokenizer.current().unwrap()));
-//         }
-//         // parameter
-//         compile_parameter_list(tokenizer, output);
-//         // )
-//         output.push(get_xml(tokenizer.current().unwrap()));
-//         compile_subroutine_body(tokenizer);
-//     }
-//     output.push("</subroutineDec>".to_string());
-// }
-
 fn compile_parameter_list(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
     output.push("<parameterList>".to_string());
     while tokenizer.advance().unwrap().raw != ")" {
@@ -565,6 +524,40 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_var_dec {
+            use super::*;
+
+            #[test]
+            fn test_normal() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_var_dec();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<keyword> int </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> , </symbol>",
+                        "<identifier> j </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>"
+                    ]
+                )
+            }
         }
 
         mod compile_if {
