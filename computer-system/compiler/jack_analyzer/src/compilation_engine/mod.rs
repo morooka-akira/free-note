@@ -38,6 +38,85 @@ impl<'a> CompileEngine<'a> {
         self.output.push("</statements>".to_string());
     }
 
+    // ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody
+    // fn compile_subroutine_dec(&mut self) {
+    //     self.output.push("<subroutineDec>".to_string());
+    //     self.output
+    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
+    //     self.output
+    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
+    //     self.output
+    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
+    //     self.compile_parameter_list();
+    //     self.output
+    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
+    //     self.compile_subroutine_body();
+    //     self.output.push("</subroutineDec>".to_string());
+    // }
+
+    fn compile_parameter_list(&mut self) {
+        self.output.push("<parameterList>".to_string());
+        loop {
+            match self.tokenizer.current() {
+                Some(token) => {
+                    if token.raw == ")" {
+                        break;
+                    }
+                }
+                None => break,
+            }
+            self.output.push(get_xml(self.tokenizer.current().unwrap()));
+            self.tokenizer.advance();
+        }
+        self.output.push("</parameterList>".to_string());
+    }
+
+    // '{' varDec* statements '}'
+    fn compile_subroutine_body(&mut self) {
+        self.output.push("<subroutineBody>".to_string());
+        // {
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+
+        loop {
+            if self.tokenizer.current().unwrap().raw != "var" {
+                break;
+            }
+            self.compile_var_dec();
+        }
+        self.compile_statements();
+
+        // }
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</subroutineBody>".to_string());
+    }
+
+    // ('static' | 'field') varName (',' varName)* ';'
+    fn compile_class_var_dec(&mut self) {
+        self.output.push("<classVarDec>".to_string());
+        // static | field
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // type
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // varName
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        loop {
+            if self.tokenizer.current().unwrap().raw == ";" {
+                break;
+            }
+            self.output.push(get_xml(self.tokenizer.current().unwrap()));
+            self.tokenizer.advance();
+        }
+        // ;
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</classVarDec>".to_string());
+    }
+
     // 'var' type varName (',' varName)* ';'
     fn compile_var_dec(&mut self) {
         self.output.push("<varDec>".to_string());
@@ -380,15 +459,6 @@ pub fn compile(tokenizer: &mut Tokenizer) {
     // compile_class(tokenizer, &mut output);
 }
 
-fn compile_parameter_list(tokenizer: &mut Tokenizer, output: &mut Vec<String>) {
-    output.push("<parameterList>".to_string());
-    while tokenizer.advance().unwrap().raw != ")" {
-        let token = tokenizer.current().unwrap();
-        output.push(get_xml(token));
-    }
-    output.push("</parameterList>".to_string());
-}
-
 // fn compile_subroutine_body(tokenizer: &mut Tokenizer) {
 //     // output.push("</subroutineBody>".to_string());
 //     // {
@@ -524,6 +594,136 @@ mod tests {
             //         ]
             //     )
             // }
+        }
+
+        mod compile_parameter_list {
+            use super::*;
+
+            #[test]
+            fn test_parameter_list() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("Ax".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("Ay".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("Asize".to_string(), TokenType::Identifier),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_parameter_list();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<parameterList>",
+                        "<keyword> int </keyword>",
+                        "<identifier> Ax </identifier>",
+                        "<symbol> , </symbol>",
+                        "<keyword> int </keyword>",
+                        "<identifier> Ay </identifier>",
+                        "<symbol> , </symbol>",
+                        "<keyword> int </keyword>",
+                        "<identifier> Asize </identifier>",
+                        "</parameterList>",
+                    ]
+                )
+            }
+        }
+
+        mod compile_subroutine_body {
+            use super::*;
+
+            #[test]
+            fn test_subroutine_body() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("do".to_string(), TokenType::Keyword),
+                    Token::new("Memory".to_string(), TokenType::Identifier),
+                    Token::new(".".to_string(), TokenType::Symbol),
+                    Token::new("deAlloc".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("this".to_string(), TokenType::Keyword),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_subroutine_body();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<subroutineBody>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<doStatement>",
+                        "<keyword> do </keyword>",
+                        "<identifier> Memory </identifier>",
+                        "<symbol> . </symbol>",
+                        "<identifier> deAlloc </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<expressionList>",
+                        "<expression>",
+                        "<term>",
+                        "<keyword> this </keyword>",
+                        "</term>",
+                        "</expression>",
+                        "</expressionList>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> ; </symbol>",
+                        "</doStatement>",
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</subroutineBody>",
+                    ]
+                )
+            }
+        }
+
+        mod compile_class_var_dec {
+            use super::*;
+
+            #[test]
+            fn test_field() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("field".to_string(), TokenType::Keyword),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("x".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("y".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_class_var_dec();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<classVarDec>",
+                        "<keyword> field </keyword>",
+                        "<keyword> int </keyword>",
+                        "<identifier> x </identifier>",
+                        "<symbol> , </symbol>",
+                        "<identifier> y </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</classVarDec>",
+                    ]
+                )
+            }
         }
 
         mod compile_var_dec {
