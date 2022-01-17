@@ -20,6 +20,7 @@ impl<'a> CompileEngine<'a> {
             if self.tokenizer.current().unwrap().raw == "}" {
                 break;
             }
+            println!("{:?}", self.output);
             match self.tokenizer.current() {
                 Some(token) => match token.token_type {
                     TokenType::Keyword => match token.keyword() {
@@ -39,20 +40,29 @@ impl<'a> CompileEngine<'a> {
     }
 
     // ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody
-    // fn compile_subroutine_dec(&mut self) {
-    //     self.output.push("<subroutineDec>".to_string());
-    //     self.output
-    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
-    //     self.output
-    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
-    //     self.output
-    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
-    //     self.compile_parameter_list();
-    //     self.output
-    //         .push(self.tokenizer.advance().unwrap().raw.to_string());
-    //     self.compile_subroutine_body();
-    //     self.output.push("</subroutineDec>".to_string());
-    // }
+    fn compile_subroutine_dec(&mut self) {
+        self.output.push("<subroutineDec>".to_string());
+        // ('constructor' | 'function' | 'method')
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // ('void' | type)
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // subroutineName
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // (
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // parameterList
+        self.compile_parameter_list();
+        // )
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // subrountineBody
+        self.compile_subroutine_body();
+        self.output.push("</subroutineDec>".to_string());
+    }
 
     fn compile_parameter_list(&mut self) {
         self.output.push("<parameterList>".to_string());
@@ -79,10 +89,12 @@ impl<'a> CompileEngine<'a> {
         self.tokenizer.advance();
 
         loop {
-            if self.tokenizer.current().unwrap().raw != "var" {
-                break;
+            match self.tokenizer.current().unwrap().keyword() {
+                Keyword::Var => {
+                    self.compile_var_dec();
+                }
+                _ => break,
             }
-            self.compile_var_dec();
         }
         self.compile_statements();
 
@@ -283,18 +295,17 @@ impl<'a> CompileEngine<'a> {
     // (expression (',' expression))
     fn compile_expression_list(&mut self) {
         self.output.push("<expressionList>".to_string());
-        self.compile_expression();
         loop {
             match self.tokenizer.current() {
                 Some(token) => {
-                    // ,がついている場合は再帰で自分を呼ぶ
+                    if token.raw == ")" {
+                        break;
+                    }
                     if token.raw == "," {
                         self.output.push(get_xml(token));
                         self.tokenizer.advance();
-                        self.compile_expression();
-                    } else {
-                        break;
                     }
+                    self.compile_expression();
                 }
                 None => {
                     break;
@@ -566,34 +577,189 @@ mod tests {
         mod compile_expression_list {
             use super::*;
 
-            // #[test]
-            // fn test_compile_expression_list() {
-            //     // do func(x, y, z) みたいな引数を想定
-            //     let mut tokenizer = Tokenizer::new(vec![
-            //         Token::new("x".to_string(), TokenType::Identifier),
-            //         Token::new(",".to_string(), TokenType::Symbol),
-            //         Token::new("y".to_string(), TokenType::Identifier),
-            //         Token::new(",".to_string(), TokenType::Symbol),
-            //         Token::new("z".to_string(), TokenType::Identifier),
-            //     ]);
+            #[test]
+            fn test_compile_expression_list() {
+                // do func(x, y, z) みたいな引数を想定
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("x".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("y".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("z".to_string(), TokenType::Identifier),
+                ]);
 
-            //     let mut output: Vec<String> = vec![];
-            //     let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
-            //     engine.compile_expression_list();
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_expression_list();
 
-            //     assert_eq!(
-            //         output,
-            //         [
-            //             "<expressionList>",
-            //             "<identifier> x </identifier>",
-            //             "<symbol> , </symbol>",
-            //             "<identifier> y </identifier>",
-            //             "<symbol> , </symbol>",
-            //             "<identifier> z </identifier>",
-            //             "</expressionList>"
-            //         ]
-            //     )
-            // }
+                assert_eq!(
+                    output,
+                    [
+                        "<expressionList>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> x </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> , </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> y </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> , </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> z </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "</expressionList>",
+                    ]
+                )
+            }
+
+            #[test]
+            fn test_compile_empty() {
+                let mut tokenizer = Tokenizer::new(vec![]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_expression_list();
+
+                assert_eq!(output, ["<expressionList>", "</expressionList>",])
+            }
+        }
+
+        mod compile_subroutine_dec {
+            use super::*;
+
+            #[test]
+            fn test_subroutine_dec() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("constructor".to_string(), TokenType::Keyword),
+                    Token::new("Square".to_string(), TokenType::Identifier),
+                    Token::new("new".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("Ax".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("Ay".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("Asize".to_string(), TokenType::Identifier),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("x".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("Ax".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("y".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("Ay".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("size".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("Asize".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("do".to_string(), TokenType::Keyword),
+                    Token::new("draw".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new("x".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_subroutine_dec();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<subroutineDec>",
+                        "<keyword> constructor </keyword>",
+                        "<identifier> Square </identifier>",
+                        "<identifier> new </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<parameterList>",
+                        "<keyword> int </keyword>",
+                        "<identifier> Ax </identifier>",
+                        "<symbol> , </symbol>",
+                        "<keyword> int </keyword>",
+                        "<identifier> Ay </identifier>",
+                        "<symbol> , </symbol>",
+                        "<keyword> int </keyword>",
+                        "<identifier> Asize </identifier>",
+                        "</parameterList>",
+                        "<symbol> ) </symbol>",
+                        "<subroutineBody>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> x </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> Ax </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> y </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> Ay </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> size </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> Asize </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<doStatement>",
+                        "<keyword> do </keyword>",
+                        "<identifier> draw </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<expressionList>",
+                        "</expressionList>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> ; </symbol>",
+                        "</doStatement>",
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> x </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</subroutineBody>",
+                        "</subroutineDec>",
+                    ]
+                )
+            }
         }
 
         mod compile_parameter_list {
