@@ -501,8 +501,8 @@ impl<'a> CompileEngine<'a> {
 
 pub fn compile(tokenizer: &mut Tokenizer) {
     let mut output: Vec<String> = vec![];
-    let engine = CompileEngine::new(tokenizer, &mut output);
-    // compile_class(tokenizer, &mut output);
+    let mut engine = CompileEngine::new(tokenizer, &mut output);
+    engine.compile_class();
 }
 
 fn get_xml(token: &Token) -> String {
@@ -513,7 +513,6 @@ fn get_xml(token: &Token) -> String {
         TokenType::Symbol => format!("<symbol> {} </symbol>", fix_token),
         TokenType::IntConst => format!("<integerConstant> {} </integerConstant>", fix_token),
         TokenType::StringConst => format!("<stringConstant> {} </stringConstant>", fix_token),
-        _ => "unknown xml".to_string(),
     }
 }
 
