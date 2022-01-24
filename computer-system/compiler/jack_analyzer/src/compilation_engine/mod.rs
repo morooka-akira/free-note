@@ -13,6 +13,42 @@ impl<'a> CompileEngine<'a> {
         }
     }
 
+    fn compile_class(&mut self) {
+        self.output.push("<class>".to_string());
+        // class
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // className
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        // {
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+
+        loop {
+            if self.tokenizer.current().unwrap().raw == "}" {
+                break;
+            }
+            match self.tokenizer.current() {
+                Some(token) => match token.token_type {
+                    TokenType::Keyword => match token.keyword() {
+                        Keyword::Static | Keyword::Field => self.compile_class_var_dec(),
+                        Keyword::Constructor | Keyword::Function | Keyword::Method => {
+                            self.compile_subroutine_dec()
+                        }
+                        _ => panic!("compile_class: unexpected keyword: {:?}", token),
+                    },
+                    _ => panic!("compile_class: unexpected token type: {:?}", token),
+                },
+                None => {}
+            }
+        }
+        // }
+        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.tokenizer.advance();
+        self.output.push("</class>".to_string());
+    }
+
     // letStatement | ifStatement | whileStatement | doStatement | returnStatement
     fn compile_statements(&mut self) {
         self.output.push("<statements>".to_string());
@@ -20,7 +56,6 @@ impl<'a> CompileEngine<'a> {
             if self.tokenizer.current().unwrap().raw == "}" {
                 break;
             }
-            println!("{:?}", self.output);
             match self.tokenizer.current() {
                 Some(token) => match token.token_type {
                     TokenType::Keyword => match token.keyword() {
@@ -470,85 +505,6 @@ pub fn compile(tokenizer: &mut Tokenizer) {
     // compile_class(tokenizer, &mut output);
 }
 
-// fn compile_subroutine_body(tokenizer: &mut Tokenizer) {
-//     // output.push("</subroutineBody>".to_string());
-//     // {
-//     if let Some(token) = tokenizer.advance() {
-//         println!("{}", get_xml(token));
-//     }
-//     tokenizer.advance();
-//     while tokenizer.has_more_tokens() {
-//         if let Some(token) = tokenizer.current() {
-//             if TokenType::Keyword != token.token_type {
-//                 panic!("keyword not found")
-//             }
-//             match token.keyword() {
-//                 Keyword::Var => compile_var_dec(tokenizer),
-//                 _ => compile_statements(tokenizer),
-//             }
-//         }
-//         tokenizer.advance();
-//     }
-//     // }
-//     if let Some(token) = tokenizer.advance() {
-//         println!("{}", get_xml(token));
-//     }
-//     println!("</subroutineBody>");
-// }
-
-fn compile_var_dec(tokenizer: &mut Tokenizer) {
-    println!("<varDec>");
-    // var
-    println!("{}", get_xml(tokenizer.current().unwrap()));
-    // type
-    if let Some(token) = tokenizer.advance() {
-        println!("{}", get_xml(token));
-    }
-    // var name | ,
-    while tokenizer.advance().unwrap().raw != ";" {
-        let token = tokenizer.current().unwrap();
-        println!("{}", get_xml(token));
-    }
-    // ;
-    println!("{}", get_xml(tokenizer.current().unwrap()));
-    println!("</varDec>");
-}
-
-// fn compile_statements(tokenizer: &mut Tokenizer) {
-//     println!("<statements>");
-//     while tokenizer.has_more_tokens() {
-//         if let Some(token) = tokenizer.current() {
-//             if TokenType::Keyword != token.token_type {
-//                 panic!("keyword not found")
-//             }
-//             match token.keyword() {
-//                 Keyword::Let => compile_let(tokenizer),
-//                 _ => println!("other words"),
-//             }
-//         }
-//         tokenizer.advance();
-//     }
-//     println!("</statements>");
-// }
-
-// fn compile_let(tokenizer: &mut Tokenizer) {
-//     println!("<letStatement>");
-//     // let
-//     println!("{}", get_xml(tokenizer.current().unwrap()));
-//     // var name
-//     if let Some(token) = tokenizer.advance() {
-//         println!("{}", get_xml(token));
-//     }
-//     // [] がある場合は添字の処理
-//     if let Some(token) = tokenizer.advance() {
-//         if token.raw == "[" {
-//             println!("{}", get_xml(token));
-//             tokenizer.advance();
-//         }
-//     }
-//     println!("</letStatement>");
-// }
-
 fn get_xml(token: &Token) -> String {
     let fix_token = xml_encode(&token.raw);
     match token.token_type {
@@ -573,6 +529,337 @@ mod tests {
     use super::*;
     mod compile_engine {
         use super::*;
+
+        mod test_compile_class {
+            use super::*;
+
+            #[test]
+            fn test_compile_class() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("class".to_string(), TokenType::Keyword),
+                    Token::new("Main".to_string(), TokenType::Identifier),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("static".to_string(), TokenType::Keyword),
+                    Token::new("boolean".to_string(), TokenType::Keyword),
+                    Token::new("test".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("function".to_string(), TokenType::Keyword),
+                    Token::new("void".to_string(), TokenType::Keyword),
+                    Token::new("main".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("SquareGame".to_string(), TokenType::Identifier),
+                    Token::new("game".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("game".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("game".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("do".to_string(), TokenType::Keyword),
+                    Token::new("game".to_string(), TokenType::Identifier),
+                    Token::new(".".to_string(), TokenType::Symbol),
+                    Token::new("run".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("do".to_string(), TokenType::Keyword),
+                    Token::new("game".to_string(), TokenType::Identifier),
+                    Token::new(".".to_string(), TokenType::Symbol),
+                    Token::new("dispose".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("function".to_string(), TokenType::Keyword),
+                    Token::new("void".to_string(), TokenType::Keyword),
+                    Token::new("test".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("String".to_string(), TokenType::Identifier),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("Array".to_string(), TokenType::Identifier),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("if".to_string(), TokenType::Keyword),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new("[".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("]".to_string(), TokenType::Symbol),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("else".to_string(), TokenType::Keyword),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("|".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                ]);
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_class();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<class>",
+                        "<keyword> class </keyword>",
+                        "<identifier> Main </identifier>",
+                        "<symbol> { </symbol>",
+                        "<classVarDec>",
+                        "<keyword> static </keyword>",
+                        "<keyword> boolean </keyword>",
+                        "<identifier> test </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</classVarDec>",
+                        "<subroutineDec>",
+                        "<keyword> function </keyword>",
+                        "<keyword> void </keyword>",
+                        "<identifier> main </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<parameterList>",
+                        "</parameterList>",
+                        "<symbol> ) </symbol>",
+                        "<subroutineBody>",
+                        "<symbol> { </symbol>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<identifier> SquareGame </identifier>",
+                        "<identifier> game </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> game </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> game </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<doStatement>",
+                        "<keyword> do </keyword>",
+                        "<identifier> game </identifier>",
+                        "<symbol> . </symbol>",
+                        "<identifier> run </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<expressionList>",
+                        "</expressionList>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> ; </symbol>",
+                        "</doStatement>",
+                        "<doStatement>",
+                        "<keyword> do </keyword>",
+                        "<identifier> game </identifier>",
+                        "<symbol> . </symbol>",
+                        "<identifier> dispose </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<expressionList>",
+                        "</expressionList>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> ; </symbol>",
+                        "</doStatement>",
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</subroutineBody>",
+                        "</subroutineDec>",
+                        "<subroutineDec>",
+                        "<keyword> function </keyword>",
+                        "<keyword> void </keyword>",
+                        "<identifier> test </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<parameterList>",
+                        "</parameterList>",
+                        "<symbol> ) </symbol>",
+                        "<subroutineBody>",
+                        "<symbol> { </symbol>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<keyword> int </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> , </symbol>",
+                        "<identifier> j </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<identifier> String </identifier>",
+                        "<identifier> s </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<identifier> Array </identifier>",
+                        "<identifier> a </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<statements>",
+                        "<ifStatement>",
+                        "<keyword> if </keyword>",
+                        "<symbol> ( </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> s </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> s </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> a </identifier>",
+                        "<symbol> [ </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ] </symbol>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "<keyword> else </keyword>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> j </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "<symbol> | </symbol>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</ifStatement>",
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</subroutineBody>",
+                        "</subroutineDec>",
+                        "<symbol> } </symbol>",
+                        "</class>",
+                    ]
+                )
+            }
+        }
 
         mod compile_expression_list {
             use super::*;
@@ -634,7 +921,225 @@ mod tests {
             use super::*;
 
             #[test]
-            fn test_subroutine_dec() {
+            fn test_function() {
+                let mut tokenizer = Tokenizer::new(vec![
+                    Token::new("function".to_string(), TokenType::Keyword),
+                    Token::new("void".to_string(), TokenType::Keyword),
+                    Token::new("test".to_string(), TokenType::Identifier),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("int".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(",".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("String".to_string(), TokenType::Identifier),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("var".to_string(), TokenType::Keyword),
+                    Token::new("Array".to_string(), TokenType::Identifier),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("if".to_string(), TokenType::Keyword),
+                    Token::new("(".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(")".to_string(), TokenType::Symbol),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("s".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("a".to_string(), TokenType::Identifier),
+                    Token::new("[".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("]".to_string(), TokenType::Symbol),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("else".to_string(), TokenType::Keyword),
+                    Token::new("{".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("let".to_string(), TokenType::Keyword),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("=".to_string(), TokenType::Symbol),
+                    Token::new("i".to_string(), TokenType::Identifier),
+                    Token::new("|".to_string(), TokenType::Symbol),
+                    Token::new("j".to_string(), TokenType::Identifier),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                    Token::new("return".to_string(), TokenType::Keyword),
+                    Token::new(";".to_string(), TokenType::Symbol),
+                    Token::new("}".to_string(), TokenType::Symbol),
+                ]);
+
+                let mut output: Vec<String> = vec![];
+                let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
+                engine.compile_subroutine_dec();
+
+                assert_eq!(
+                    output,
+                    [
+                        "<subroutineDec>",
+                        "<keyword> function </keyword>",
+                        "<keyword> void </keyword>",
+                        "<identifier> test </identifier>",
+                        "<symbol> ( </symbol>",
+                        "<parameterList>",
+                        "</parameterList>",
+                        "<symbol> ) </symbol>",
+                        "<subroutineBody>",
+                        "<symbol> { </symbol>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<keyword> int </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> , </symbol>",
+                        "<identifier> j </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<identifier> String </identifier>",
+                        "<identifier> s </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<varDec>",
+                        "<keyword> var </keyword>",
+                        "<identifier> Array </identifier>",
+                        "<identifier> a </identifier>",
+                        "<symbol> ; </symbol>",
+                        "</varDec>",
+                        "<statements>",
+                        "<ifStatement>",
+                        "<keyword> if </keyword>",
+                        "<symbol> ( </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ) </symbol>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> s </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> s </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> a </identifier>",
+                        "<symbol> [ </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ] </symbol>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "<keyword> else </keyword>",
+                        "<symbol> { </symbol>",
+                        "<statements>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> j </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "<letStatement>",
+                        "<keyword> let </keyword>",
+                        "<identifier> i </identifier>",
+                        "<symbol> = </symbol>",
+                        "<expression>",
+                        "<term>",
+                        "<identifier> i </identifier>",
+                        "</term>",
+                        "<symbol> | </symbol>",
+                        "<term>",
+                        "<identifier> j </identifier>",
+                        "</term>",
+                        "</expression>",
+                        "<symbol> ; </symbol>",
+                        "</letStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</ifStatement>",
+                        "<returnStatement>",
+                        "<keyword> return </keyword>",
+                        "<symbol> ; </symbol>",
+                        "</returnStatement>",
+                        "</statements>",
+                        "<symbol> } </symbol>",
+                        "</subroutineBody>",
+                        "</subroutineDec>",
+                    ]
+                )
+            }
+
+            #[test]
+            fn test_constructor() {
                 let mut tokenizer = Tokenizer::new(vec![
                     Token::new("constructor".to_string(), TokenType::Keyword),
                     Token::new("Square".to_string(), TokenType::Identifier),
@@ -1325,7 +1830,6 @@ mod tests {
                 let mut output: Vec<String> = vec![];
                 let mut engine = CompileEngine::new(&mut tokenizer, &mut output);
                 engine.compile_do();
-                println!("{:?}", output);
 
                 assert_eq!(
                     output,
