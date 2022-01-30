@@ -39,6 +39,18 @@ pub enum TokenType {
     StringConst,
 }
 
+impl TokenType {
+    fn to_s(&self) -> &str {
+        match self {
+            TokenType::Keyword => "keyword",
+            TokenType::Identifier => "identifier",
+            TokenType::Symbol => "symbol",
+            TokenType::IntConst => "integerConstant",
+            TokenType::StringConst => "stringConstant",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Token {
     pub raw: String,
@@ -84,6 +96,24 @@ impl Token {
 
     pub fn is_operator(&self) -> bool {
         ["+", "-", "*", "/", "&", "|", "<", ">", "="].contains(&self.raw.as_str())
+    }
+
+    pub fn to_xml(&self) -> String {
+        format!(
+            "<{}> {} </{}>",
+            self.token_type.to_s(),
+            self.encode_raw(),
+            self.token_type.to_s()
+        )
+    }
+
+    fn encode_raw(&self) -> &str {
+        match self.raw.as_str() {
+            "<" => "&lt;",
+            ">" => "&gt;",
+            "&" => "&amp;",
+            _ => self.raw.as_str(),
+        }
     }
 }
 
@@ -282,6 +312,50 @@ mod tests {
 
     mod token {
         use super::*;
+
+        #[test]
+        fn test_to_xml() {
+            assert_eq!(
+                Token::new("<".to_string(), TokenType::Symbol).to_xml(),
+                "<symbol> &lt; </symbol>"
+            );
+            assert_eq!(
+                Token::new("method".to_string(), TokenType::Keyword).to_xml(),
+                "<keyword> method </keyword>"
+            );
+            assert_eq!(
+                Token::new("dispose".to_string(), TokenType::Identifier).to_xml(),
+                "<identifier> dispose </identifier>"
+            );
+            assert_eq!(
+                Token::new("100".to_string(), TokenType::IntConst).to_xml(),
+                "<integerConstant> 100 </integerConstant>"
+            );
+            assert_eq!(
+                Token::new("x".to_string(), TokenType::StringConst).to_xml(),
+                "<stringConstant> x </stringConstant>"
+            );
+        }
+
+        #[test]
+        fn test_encode_raw() {
+            assert_eq!(
+                Token::new("<".to_string(), TokenType::Symbol).encode_raw(),
+                "&lt;"
+            );
+            assert_eq!(
+                Token::new(">".to_string(), TokenType::Symbol).encode_raw(),
+                "&gt;"
+            );
+            assert_eq!(
+                Token::new("&".to_string(), TokenType::Symbol).encode_raw(),
+                "&amp;"
+            );
+            assert_eq!(
+                Token::new("method".to_string(), TokenType::Keyword).encode_raw(),
+                "method"
+            );
+        }
 
         #[test]
         fn test_keyword() {
