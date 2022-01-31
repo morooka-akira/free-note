@@ -143,6 +143,19 @@ impl Tokenizer {
     pub fn current(&mut self) -> Option<&Token> {
         self.tokens.get(self.index)
     }
+
+    pub fn to_xml(&mut self) -> String {
+        let mut xml = String::new();
+        xml.push_str("<tokens>\n");
+        while self.has_more_tokens() {
+            if let Some(token) = self.current() {
+                xml.push_str(format!("{}\n", token.to_xml()).as_str());
+                self.advance();
+            }
+        }
+        xml.push_str("</tokens>");
+        xml
+    }
 }
 
 pub fn tokenize(file: &File) -> Tokenizer {
