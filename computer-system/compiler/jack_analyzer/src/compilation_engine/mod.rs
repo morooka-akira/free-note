@@ -1,5 +1,20 @@
 use crate::jack_tokenizer::{Keyword, Token, TokenType, Tokenizer};
 
+pub fn compile(tokenizer: &mut Tokenizer) {
+    let mut output: Vec<String> = vec![];
+    let mut engine = CompileEngine::new(tokenizer, &mut output);
+    engine.compile_class();
+}
+
+pub fn compile_xml(tokenizer: &mut Tokenizer) {
+    let mut output: Vec<String> = vec![];
+    let mut engine = CompileEngine::new(tokenizer, &mut output);
+    engine.compile_class();
+    for (_i, line) in output.iter().enumerate() {
+        println!("{}", line);
+    }
+}
+
 struct CompileEngine<'a> {
     tokenizer: &'a mut Tokenizer,
     output: &'a mut Vec<String>,
@@ -16,13 +31,13 @@ impl<'a> CompileEngine<'a> {
     fn compile_class(&mut self) {
         self.output.push("<class>".to_string());
         // class
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // className
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // {
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
 
         loop {
@@ -44,7 +59,7 @@ impl<'a> CompileEngine<'a> {
             }
         }
         // }
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</class>".to_string());
     }
@@ -66,7 +81,9 @@ impl<'a> CompileEngine<'a> {
                         Keyword::Return => self.compile_return(),
                         _ => panic!("unexpected keyword: {:?}", token),
                     },
-                    _ => panic!("unexpected token: {:?}", token),
+                    _ => {
+                        panic!("unexpected token: {:?}", token)
+                    }
                 },
                 None => {}
             }
@@ -78,21 +95,21 @@ impl<'a> CompileEngine<'a> {
     fn compile_subroutine_dec(&mut self) {
         self.output.push("<subroutineDec>".to_string());
         // ('constructor' | 'function' | 'method')
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // ('void' | type)
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // subroutineName
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // (
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // parameterList
         self.compile_parameter_list();
         // )
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // subrountineBody
         self.compile_subroutine_body();
@@ -110,7 +127,7 @@ impl<'a> CompileEngine<'a> {
                 }
                 None => break,
             }
-            self.output.push(get_xml(self.tokenizer.current().unwrap()));
+            self.output.push(self.tokenizer.current().unwrap().to_xml());
             self.tokenizer.advance();
         }
         self.output.push("</parameterList>".to_string());
@@ -120,7 +137,7 @@ impl<'a> CompileEngine<'a> {
     fn compile_subroutine_body(&mut self) {
         self.output.push("<subroutineBody>".to_string());
         // {
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
 
         loop {
@@ -134,7 +151,7 @@ impl<'a> CompileEngine<'a> {
         self.compile_statements();
 
         // }
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</subroutineBody>".to_string());
     }
@@ -143,23 +160,23 @@ impl<'a> CompileEngine<'a> {
     fn compile_class_var_dec(&mut self) {
         self.output.push("<classVarDec>".to_string());
         // static | field
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // type
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // varName
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         loop {
             if self.tokenizer.current().unwrap().raw == ";" {
                 break;
             }
-            self.output.push(get_xml(self.tokenizer.current().unwrap()));
+            self.output.push(self.tokenizer.current().unwrap().to_xml());
             self.tokenizer.advance();
         }
         // ;
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</classVarDec>".to_string());
     }
@@ -168,23 +185,23 @@ impl<'a> CompileEngine<'a> {
     fn compile_var_dec(&mut self) {
         self.output.push("<varDec>".to_string());
         // var
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // type
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // varName
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         loop {
             if self.tokenizer.current().unwrap().raw == ";" {
                 break;
             }
-            self.output.push(get_xml(self.tokenizer.current().unwrap()));
+            self.output.push(self.tokenizer.current().unwrap().to_xml());
             self.tokenizer.advance();
         }
         // ;
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</varDec>".to_string());
     }
@@ -193,23 +210,23 @@ impl<'a> CompileEngine<'a> {
     fn compile_while(&mut self) {
         self.output.push("<whileStatement>".to_string());
         // while
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // (
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // expression
         self.compile_expression();
         // )
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // {
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // statements
         self.compile_statements();
         // }
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</whileStatement>".to_string());
     }
@@ -218,32 +235,32 @@ impl<'a> CompileEngine<'a> {
     fn compile_let(&mut self) {
         self.output.push("<letStatement>".to_string());
         // let
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // varName
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         match self.tokenizer.current() {
             Some(token) => {
                 if token.raw == "[" {
                     // '[' expression ']'
                     // [
-                    self.output.push(get_xml(token));
+                    self.output.push(token.to_xml());
                     self.tokenizer.advance();
                     self.compile_expression();
                     // ]
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                 }
             }
             None => {}
         }
         // =
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.compile_expression();
         // :
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</letStatement>".to_string());
     }
@@ -251,23 +268,23 @@ impl<'a> CompileEngine<'a> {
     fn compile_if(&mut self) {
         self.output.push("<ifStatement>".to_string());
         // if
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // (
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // expression
         self.compile_expression();
         // )
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // {
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // statements
         self.compile_statements();
         // }
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
 
         match self.tokenizer.current() {
@@ -275,15 +292,15 @@ impl<'a> CompileEngine<'a> {
                 if token.raw == "else" {
                     // else '{' statements '}'
                     // else
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                     // {
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                     // statements
                     self.compile_statements();
                     // }
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                 }
             }
@@ -297,11 +314,11 @@ impl<'a> CompileEngine<'a> {
     fn compile_do(&mut self) {
         self.output.push("<doStatement>".to_string());
         // do
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.compile_subroutine_call();
         // ;
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</doStatement>".to_string());
     }
@@ -310,7 +327,7 @@ impl<'a> CompileEngine<'a> {
     fn compile_return(&mut self) {
         self.output.push("<returnStatement>".to_string());
         // return
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // expression?
         match self.tokenizer.current() {
@@ -322,7 +339,7 @@ impl<'a> CompileEngine<'a> {
             None => {}
         }
         // ;
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         self.output.push("</returnStatement>".to_string());
     }
@@ -337,7 +354,7 @@ impl<'a> CompileEngine<'a> {
                         break;
                     }
                     if token.raw == "," {
-                        self.output.push(get_xml(token));
+                        self.output.push(token.to_xml());
                         self.tokenizer.advance();
                     }
                     self.compile_expression();
@@ -357,19 +374,14 @@ impl<'a> CompileEngine<'a> {
         loop {
             if let Some(token) = self.tokenizer.current() {
                 if token.is_operator() {
-                    self.output.push(get_xml(token));
+                    self.output.push(token.to_xml());
                     self.tokenizer.advance();
                     self.compile_term();
-                    let t = self.tokenizer.current().unwrap();
-                    println!("[debug] {:?}", t);
                     break;
                 } else {
-                    let t = self.tokenizer.current().unwrap();
-                    println!("[debug] not op {:?}", t);
                     break;
                 }
             } else {
-                println!("[debug] Not token");
                 break;
             }
         }
@@ -381,18 +393,18 @@ impl<'a> CompileEngine<'a> {
         // unaryOp term
         if let Some(token) = self.tokenizer.current() {
             if token.raw == "-" || token.raw == "~" {
-                self.output.push(get_xml(token));
+                self.output.push(token.to_xml());
                 self.tokenizer.advance();
                 self.compile_term();
                 self.output.push("</term>".to_string());
                 return;
             }
             if token.raw == "(" {
-                self.output.push(get_xml(token));
+                self.output.push(token.to_xml());
                 self.tokenizer.advance();
                 self.compile_expression();
                 // )を出力
-                self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                self.output.push(self.tokenizer.current().unwrap().to_xml());
                 self.tokenizer.advance();
                 self.output.push("</term>".to_string());
                 return;
@@ -400,7 +412,7 @@ impl<'a> CompileEngine<'a> {
         }
 
         // integerConstant | stringConstant | keywordConstant | varName
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
 
         if let Some(token) = self.tokenizer.current() {
@@ -408,46 +420,43 @@ impl<'a> CompileEngine<'a> {
                 // [ expression ]
                 "[" => {
                     // [
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     // expression
                     self.tokenizer.advance();
                     self.compile_expression();
                     // ]
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                 }
                 // subroutineName ( expressionList )
                 "(" => {
                     // (
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     // expression list
                     self.tokenizer.advance();
                     self.compile_expression_list();
                     // )
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                 }
                 // (className | varName) . subroutineName (expressionList)
                 "." => {
                     // .
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                     // subroutine name
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     // (
                     self.tokenizer.advance();
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     // expression list
                     self.tokenizer.advance();
                     self.compile_expression_list();
                     // )
-                    self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                    self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                 }
-                _ => {
-                    let xml = get_xml(self.tokenizer.current().unwrap());
-                    println!("next term: {}", xml);
-                }
+                _ => {}
             }
         }
         self.output.push("</term>".to_string());
@@ -455,7 +464,7 @@ impl<'a> CompileEngine<'a> {
 
     fn compile_subroutine_call(&mut self) {
         // subroutine Name | (className | varName)
-        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+        self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         match self.tokenizer.current() {
             Some(token) => {
@@ -463,63 +472,39 @@ impl<'a> CompileEngine<'a> {
                     // subroutineName ( expressionList )
                     "(" => {
                         // (
-                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.output.push(self.tokenizer.current().unwrap().to_xml());
                         // expression list
                         self.tokenizer.advance();
                         self.compile_expression_list();
                         // )
-                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.output.push(self.tokenizer.current().unwrap().to_xml());
                         self.tokenizer.advance();
                     }
                     // (className | varName) . subroutineName (expressionList)
                     "." => {
                         // .
-                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.output.push(self.tokenizer.current().unwrap().to_xml());
                         self.tokenizer.advance();
                         // subroutine name
-                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.output.push(self.tokenizer.current().unwrap().to_xml());
                         // (
                         self.tokenizer.advance();
-                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.output.push(self.tokenizer.current().unwrap().to_xml());
                         // expression list
                         self.tokenizer.advance();
                         self.compile_expression_list();
                         // )
-                        self.output.push(get_xml(self.tokenizer.current().unwrap()));
+                        self.output.push(self.tokenizer.current().unwrap().to_xml());
                         self.tokenizer.advance();
                     }
                     _ => {
-                        let xml = get_xml(self.tokenizer.current().unwrap());
+                        let xml = self.tokenizer.current().unwrap().to_xml();
                         println!("next term: {}", xml);
                     }
                 }
             }
             None => {}
         }
-    }
-}
-
-pub fn compile(tokenizer: &mut Tokenizer) {
-    let mut output: Vec<String> = vec![];
-    let mut engine = CompileEngine::new(tokenizer, &mut output);
-    engine.compile_class();
-}
-
-fn get_xml(token: &Token) -> String {
-    let fix_token = xml_encode(&token.raw);
-    match token.token_type {
-        TokenType::Keyword => format!("<keyword> {} </keyword>", fix_token),
-        TokenType::Identifier => format!("<identifier> {} </identifier>", fix_token),
-        TokenType::Symbol => format!("<symbol> {} </symbol>", fix_token),
-        TokenType::IntConst => format!("<integerConstant> {} </integerConstant>", fix_token),
-        TokenType::StringConst => format!("<stringConstant> {} </stringConstant>", fix_token),
-    }
-}
-
-fn xml_encode(str: &str) -> &str {
-    match str {
-        "<" => "&lt;",
-        _ => str,
     }
 }
 

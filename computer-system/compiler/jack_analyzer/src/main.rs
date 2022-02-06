@@ -1,6 +1,8 @@
 use std::env;
 extern crate getopts;
 use getopts::Options;
+use jack_analyzer::run;
+use jack_analyzer::Config;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -14,6 +16,7 @@ fn main() {
     let mut opts = Options::new();
     opts.optopt("o", "", "set output file name", "NAME");
     opts.optflag("h", "help", "print this help menu");
+    opts.optflag("t", "tokens", "print tokens");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -28,5 +31,6 @@ fn main() {
         print_usage(&program, opts);
         return;
     };
-    jack_analyzer::run(&matches.free[0].clone());
+    let config = Config::new(&matches).unwrap();
+    run(&config);
 }
