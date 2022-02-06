@@ -37,5 +37,5 @@ pub fn run(config: &Config) {
         println!("{}", xml);
         return;
     }
-    compilation_engine::compile(&mut tokenizer)
+    compilation_engine::compile_xml(&mut tokenizer)
 }

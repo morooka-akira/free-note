@@ -1,5 +1,20 @@
 use crate::jack_tokenizer::{Keyword, Token, TokenType, Tokenizer};
 
+pub fn compile(tokenizer: &mut Tokenizer) {
+    let mut output: Vec<String> = vec![];
+    let mut engine = CompileEngine::new(tokenizer, &mut output);
+    engine.compile_class();
+}
+
+pub fn compile_xml(tokenizer: &mut Tokenizer) {
+    let mut output: Vec<String> = vec![];
+    let mut engine = CompileEngine::new(tokenizer, &mut output);
+    engine.compile_class();
+    for (_i, line) in output.iter().enumerate() {
+        println!("{}", line);
+    }
+}
+
 struct CompileEngine<'a> {
     tokenizer: &'a mut Tokenizer,
     output: &'a mut Vec<String>,
@@ -66,7 +81,9 @@ impl<'a> CompileEngine<'a> {
                         Keyword::Return => self.compile_return(),
                         _ => panic!("unexpected keyword: {:?}", token),
                     },
-                    _ => panic!("unexpected token: {:?}", token),
+                    _ => {
+                        panic!("unexpected token: {:?}", token)
+                    }
                 },
                 None => {}
             }
@@ -360,16 +377,11 @@ impl<'a> CompileEngine<'a> {
                     self.output.push(token.to_xml());
                     self.tokenizer.advance();
                     self.compile_term();
-                    let t = self.tokenizer.current().unwrap();
-                    println!("[debug] {:?}", t);
                     break;
                 } else {
-                    let t = self.tokenizer.current().unwrap();
-                    println!("[debug] not op {:?}", t);
                     break;
                 }
             } else {
-                println!("[debug] Not token");
                 break;
             }
         }
@@ -444,10 +456,7 @@ impl<'a> CompileEngine<'a> {
                     self.output.push(self.tokenizer.current().unwrap().to_xml());
                     self.tokenizer.advance();
                 }
-                _ => {
-                    let xml = self.tokenizer.current().unwrap().to_xml();
-                    println!("next term: {}", xml);
-                }
+                _ => {}
             }
         }
         self.output.push("</term>".to_string());
@@ -497,12 +506,6 @@ impl<'a> CompileEngine<'a> {
             None => {}
         }
     }
-}
-
-pub fn compile(tokenizer: &mut Tokenizer) {
-    let mut output: Vec<String> = vec![];
-    let mut engine = CompileEngine::new(tokenizer, &mut output);
-    engine.compile_class();
 }
 
 #[cfg(test)]
