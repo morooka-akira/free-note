@@ -2,6 +2,7 @@ use std::fs::File;
 
 mod compilation_engine;
 mod jack_tokenizer;
+mod symbol_table;
 use getopts::Matches;
 
 #[derive(Debug)]
