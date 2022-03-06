@@ -7,7 +7,7 @@ pub enum SymbolKind {
     None, // 現在のスコープで見つからない場合
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Symbol {
     pub index: usize,     // シンボル番号
     pub name: String,     // シンボル名
@@ -15,7 +15,7 @@ pub struct Symbol {
     pub kind: SymbolKind, // 種類
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SymbolTable {
     class_table: ScopedTable, // クラススコープを持つシンボルテーブル
     subroutine_table: Option<ScopedTable>, // サブルーチンスコープを持つシンボルテーブル
@@ -24,94 +24,52 @@ pub struct SymbolTable {
 impl SymbolTable {
     fn new() -> Self {
         Self {
-            class_table: ScopedTable::new("class".to_string()),
+            class_table: ScopedTable::new(),
             subroutine_table: None,
         }
     }
 
-    fn current_table(&mut self) -> &mut ScopedTable {
-        if let Some(t) = &self.subroutine_table {
-            &mut t
-        } else {
-            &mut self.class_table
+    fn start_subroutine(&mut self) {
+        let table = ScopedTable::new();
+        self.subroutine_table = Some(table);
+    }
+
+    fn get_current_table(&mut self) -> &mut ScopedTable {
+        match &mut self.subroutine_table {
+            Some(table) => table,
+            None => &mut self.class_table,
         }
     }
 
     fn define(&mut self, name: String, sym_type: String, kind: SymbolKind) {
-        let mut t = self.current_table();
-        t.define(name, sym_type, kind);
-        if let Some(table) = self.subroutine_table.as_ref() {
-            let mut t = *table;
-            t.define(name, sym_type, kind)
-        } else {
-            self.class_table.define(name, sym_type, kind)
-        }
+        self.get_current_table().define(name, sym_type, kind);
     }
 
-    fn var_count(&self, kind: SymbolKind) -> usize {
-        self.current_table().var_count(kind)
+    fn var_count(&mut self, kind: SymbolKind) -> usize {
+        self.get_current_table().var_count(kind)
     }
 
-    fn kind_of(&self, name: &str) -> SymbolKind {
-        self.current_table().kind_of(name)
+    fn kind_of(&mut self, name: &str) -> SymbolKind {
+        self.get_current_table().kind_of(name)
     }
 
-    fn type_of(&self, name: &str) -> Option<String> {
-        self.current_table().type_of(name)
+    fn type_of(&mut self, name: &str) -> Option<String> {
+        self.get_current_table().type_of(name)
     }
 
-    fn index_of(&self, name: &str) -> Option<usize> {
-        self.current_table().index_of(name)
+    fn index_of(&mut self, name: &str) -> Option<usize> {
+        self.get_current_table().index_of(name)
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct SymbolIndex {
-    static_index: usize,
-    field_index: usize,
-    arg_index: usize,
-    var_index: usize,
-}
-
-impl SymbolIndex {
-    fn new() -> Self {
-        Self {
-            static_index: 0,
-            field_index: 0,
-            arg_index: 0,
-            var_index: 0,
-        }
-    }
-
-    fn current(&self, kind: &SymbolKind) -> usize {
-        match kind {
-            SymbolKind::Static => self.static_index,
-            SymbolKind::Field => self.field_index,
-            SymbolKind::Arg => self.arg_index,
-            SymbolKind::Var => self.var_index,
-            _ => panic!("SymbolKind is None"),
-        }
-    }
-
-    fn advance(&mut self, kind: &SymbolKind) {
-        match kind {
-            SymbolKind::Static => self.static_index += 1,
-            SymbolKind::Field => self.field_index += 1,
-            SymbolKind::Arg => self.arg_index += 1,
-            SymbolKind::Var => self.var_index += 1,
-            _ => panic!("SymbolKind is None"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct ScopedTable {
     symbols: Vec<Symbol>,
     index: SymbolIndex,
 }
 
 impl ScopedTable {
-    fn new(category: String) -> Self {
+    fn new() -> Self {
         ScopedTable {
             symbols: Vec::new(),
             index: SymbolIndex::new(),
@@ -169,6 +127,45 @@ impl ScopedTable {
             }
         }
         index
+    }
+}
+
+#[derive(Debug)]
+pub struct SymbolIndex {
+    static_index: usize,
+    field_index: usize,
+    arg_index: usize,
+    var_index: usize,
+}
+
+impl SymbolIndex {
+    fn new() -> Self {
+        Self {
+            static_index: 0,
+            field_index: 0,
+            arg_index: 0,
+            var_index: 0,
+        }
+    }
+
+    fn current(&self, kind: &SymbolKind) -> usize {
+        match kind {
+            SymbolKind::Static => self.static_index,
+            SymbolKind::Field => self.field_index,
+            SymbolKind::Arg => self.arg_index,
+            SymbolKind::Var => self.var_index,
+            _ => panic!("SymbolKind is None"),
+        }
+    }
+
+    fn advance(&mut self, kind: &SymbolKind) {
+        match kind {
+            SymbolKind::Static => self.static_index += 1,
+            SymbolKind::Field => self.field_index += 1,
+            SymbolKind::Arg => self.arg_index += 1,
+            SymbolKind::Var => self.var_index += 1,
+            _ => panic!("SymbolKind is None"),
+        }
     }
 }
 
