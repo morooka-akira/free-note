@@ -173,12 +173,12 @@ impl SymbolIndex {
 mod tests {
     use super::*;
 
-    mod test_ScopedTable {
+    mod test_scoped_table {
         use super::*;
 
         #[test]
         fn test_kind_of() {
-            let mut table = ScopedTable::new("class".to_string());
+            let mut table = ScopedTable::new();
             table.define("x".to_string(), "int".to_string(), SymbolKind::Field);
             table.define("y".to_string(), "String".to_string(), SymbolKind::Static);
             assert_eq!(table.kind_of("a"), SymbolKind::None);
@@ -188,7 +188,7 @@ mod tests {
 
         #[test]
         fn test_define() {
-            let mut table = ScopedTable::new("class".to_string());
+            let mut table = ScopedTable::new();
             table.define("x".to_string(), "int".to_string(), SymbolKind::Field);
             assert_eq!(table.symbols.len(), 1);
             assert_eq!(table.index.field_index, 1);
@@ -196,7 +196,7 @@ mod tests {
 
         #[test]
         fn test_var_count() {
-            let mut table = ScopedTable::new("class".to_string());
+            let mut table = ScopedTable::new();
             table.define("x".to_string(), "int".to_string(), SymbolKind::Field);
             table.define("y".to_string(), "int".to_string(), SymbolKind::Field);
             table.define(
@@ -210,7 +210,7 @@ mod tests {
 
         #[test]
         fn test_type_of() {
-            let mut table = ScopedTable::new("class".to_string());
+            let mut table = ScopedTable::new();
             table.define("x".to_string(), "int".to_string(), SymbolKind::Field);
             table.define("y".to_string(), "String".to_string(), SymbolKind::Static);
             assert_eq!(table.type_of("x").unwrap(), "int");
@@ -220,7 +220,7 @@ mod tests {
 
         #[test]
         fn test_index_of() {
-            let mut table = ScopedTable::new("class".to_string());
+            let mut table = ScopedTable::new();
             table.define("x".to_string(), "int".to_string(), SymbolKind::Field);
             table.define("y".to_string(), "String".to_string(), SymbolKind::Field);
             assert_eq!(table.index_of("x").unwrap(), 0);

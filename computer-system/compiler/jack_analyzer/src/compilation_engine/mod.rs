@@ -1,4 +1,4 @@
-use crate::jack_tokenizer::{Keyword, Token, TokenType, Tokenizer};
+use crate::jack_tokenizer::{Keyword, TokenType, Tokenizer};
 
 pub fn compile(tokenizer: &mut Tokenizer) {
     let mut output: Vec<String> = vec![];
@@ -22,10 +22,7 @@ struct CompileEngine<'a> {
 
 impl<'a> CompileEngine<'a> {
     fn new(tokenizer: &'a mut Tokenizer, output: &'a mut Vec<String>) -> CompileEngine<'a> {
-        CompileEngine {
-            tokenizer: tokenizer,
-            output: output,
-        }
+        CompileEngine { tokenizer, output }
     }
 
     fn compile_class(&mut self) {
@@ -118,14 +115,9 @@ impl<'a> CompileEngine<'a> {
 
     fn compile_parameter_list(&mut self) {
         self.output.push("<parameterList>".to_string());
-        loop {
-            match self.tokenizer.current() {
-                Some(token) => {
-                    if token.raw == ")" {
-                        break;
-                    }
-                }
-                None => break,
+        while let Some(token) = self.tokenizer.current() {
+            if token.raw == ")" {
+                break;
             }
             self.output.push(self.tokenizer.current().unwrap().to_xml());
             self.tokenizer.advance();
@@ -140,13 +132,8 @@ impl<'a> CompileEngine<'a> {
         self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
 
-        loop {
-            match self.tokenizer.current().unwrap().keyword() {
-                Keyword::Var => {
-                    self.compile_var_dec();
-                }
-                _ => break,
-            }
+        while let Keyword::Var = self.tokenizer.current().unwrap().keyword() {
+            self.compile_var_dec();
         }
         self.compile_statements();
 
@@ -347,22 +334,15 @@ impl<'a> CompileEngine<'a> {
     // (expression (',' expression))
     fn compile_expression_list(&mut self) {
         self.output.push("<expressionList>".to_string());
-        loop {
-            match self.tokenizer.current() {
-                Some(token) => {
-                    if token.raw == ")" {
-                        break;
-                    }
-                    if token.raw == "," {
-                        self.output.push(token.to_xml());
-                        self.tokenizer.advance();
-                    }
-                    self.compile_expression();
-                }
-                None => {
-                    break;
-                }
+        while let Some(token) = self.tokenizer.current() {
+            if token.raw == ")" {
+                break;
             }
+            if token.raw == "," {
+                self.output.push(token.to_xml());
+                self.tokenizer.advance();
+            }
+            self.compile_expression();
         }
         self.output.push("</expressionList>".to_string());
     }
@@ -371,16 +351,11 @@ impl<'a> CompileEngine<'a> {
     fn compile_expression(&mut self) {
         self.output.push("<expression>".to_string());
         self.compile_term();
-        loop {
-            if let Some(token) = self.tokenizer.current() {
-                if token.is_operator() {
-                    self.output.push(token.to_xml());
-                    self.tokenizer.advance();
-                    self.compile_term();
-                    break;
-                } else {
-                    break;
-                }
+        while let Some(token) = self.tokenizer.current() {
+            if token.is_operator() {
+                self.output.push(token.to_xml());
+                self.tokenizer.advance();
+                self.compile_term();
             } else {
                 break;
             }
@@ -511,6 +486,8 @@ impl<'a> CompileEngine<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jack_tokenizer::Token;
+
     mod compile_engine {
         use super::*;
 
