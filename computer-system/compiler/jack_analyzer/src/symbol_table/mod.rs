@@ -22,14 +22,34 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             class_table: ScopedTable::new(),
             subroutine_table: None,
         }
     }
 
-    fn start_subroutine(&mut self) {
+    pub fn define(&mut self, name: String, sym_type: String, kind: SymbolKind) {
+        self.get_current_table().define(name, sym_type, kind);
+    }
+
+    pub fn var_count(&mut self, kind: SymbolKind) -> usize {
+        self.get_current_table().var_count(kind)
+    }
+
+    pub fn kind_of(&mut self, name: &str) -> SymbolKind {
+        self.get_current_table().kind_of(name)
+    }
+
+    pub fn type_of(&mut self, name: &str) -> Option<String> {
+        self.get_current_table().type_of(name)
+    }
+
+    pub fn index_of(&mut self, name: &str) -> Option<usize> {
+        self.get_current_table().index_of(name)
+    }
+
+    pub fn start_subroutine(&mut self) {
         let table = ScopedTable::new();
         self.subroutine_table = Some(table);
     }
@@ -39,26 +59,6 @@ impl SymbolTable {
             Some(table) => table,
             None => &mut self.class_table,
         }
-    }
-
-    fn define(&mut self, name: String, sym_type: String, kind: SymbolKind) {
-        self.get_current_table().define(name, sym_type, kind);
-    }
-
-    fn var_count(&mut self, kind: SymbolKind) -> usize {
-        self.get_current_table().var_count(kind)
-    }
-
-    fn kind_of(&mut self, name: &str) -> SymbolKind {
-        self.get_current_table().kind_of(name)
-    }
-
-    fn type_of(&mut self, name: &str) -> Option<String> {
-        self.get_current_table().type_of(name)
-    }
-
-    fn index_of(&mut self, name: &str) -> Option<usize> {
-        self.get_current_table().index_of(name)
     }
 }
 
@@ -91,10 +91,10 @@ impl ScopedTable {
         let index = self.index.current(&kind);
         self.index.advance(&kind);
         let symbol = Symbol {
-            index: index,
-            name: name,
-            sym_type: sym_type,
-            kind: kind,
+            index,
+            name,
+            sym_type,
+            kind,
         };
         self.symbols.push(symbol);
     }

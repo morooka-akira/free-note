@@ -141,7 +141,7 @@ impl Tokenizer {
         self.tokens.get(self.index)
     }
 
-    pub fn to_xml(&mut self) -> String {
+    pub fn create_xml_string(&mut self) -> String {
         let mut xml = String::new();
         xml.push_str("<tokens>\n");
         while self.has_more_tokens() {
