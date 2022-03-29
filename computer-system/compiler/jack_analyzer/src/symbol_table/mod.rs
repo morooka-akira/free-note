@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq)]
 pub enum SymbolKind {
     Static,
     Field,

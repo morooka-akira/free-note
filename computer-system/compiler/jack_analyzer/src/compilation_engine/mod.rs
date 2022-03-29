@@ -1,4 +1,7 @@
-use crate::jack_tokenizer::{Keyword, TokenType, Tokenizer};
+use crate::{
+    jack_tokenizer::{Keyword, TokenType, Tokenizer},
+    symbol_table::{SymbolKind, SymbolTable},
+};
 
 pub fn compile(tokenizer: &mut Tokenizer) {
     let mut output: Vec<String> = vec![];
@@ -18,11 +21,16 @@ pub fn compile_xml(tokenizer: &mut Tokenizer) {
 struct CompileEngine<'a> {
     tokenizer: &'a mut Tokenizer,
     output: &'a mut Vec<String>,
+    symbol_table: SymbolTable,
 }
 
 impl<'a> CompileEngine<'a> {
     fn new(tokenizer: &'a mut Tokenizer, output: &'a mut Vec<String>) -> CompileEngine<'a> {
-        CompileEngine { tokenizer, output }
+        CompileEngine {
+            tokenizer,
+            output,
+            symbol_table: SymbolTable::new(),
+        }
     }
 
     fn compile_class(&mut self) {
@@ -46,6 +54,7 @@ impl<'a> CompileEngine<'a> {
                     TokenType::Keyword => match token.keyword() {
                         Keyword::Static | Keyword::Field => self.compile_class_var_dec(),
                         Keyword::Constructor | Keyword::Function | Keyword::Method => {
+                            self.symbol_table.start_subroutine();
                             self.compile_subroutine_dec()
                         }
                         _ => panic!("compile_class: unexpected keyword: {:?}", token),
@@ -119,8 +128,16 @@ impl<'a> CompileEngine<'a> {
             if token.raw == ")" {
                 break;
             }
-            self.output.push(self.tokenizer.current().unwrap().to_xml());
+            let name_t = self.tokenizer.current().unwrap().clone();
+            self.output.push(name_t.to_xml());
             self.tokenizer.advance();
+
+            let type_t = &self.tokenizer.current().unwrap().clone();
+            self.output.push(type_t.to_xml());
+            self.tokenizer.advance();
+
+            self.symbol_table
+                .define(name_t.raw, (*type_t).raw.to_string(), SymbolKind::Arg);
         }
         self.output.push("</parameterList>".to_string());
     }
@@ -147,19 +164,34 @@ impl<'a> CompileEngine<'a> {
     fn compile_class_var_dec(&mut self) {
         self.output.push("<classVarDec>".to_string());
         // static | field
-        self.output.push(self.tokenizer.current().unwrap().to_xml());
+        let attr_t = &self.tokenizer.current().unwrap().clone();
+        self.output.push(attr_t.to_xml());
         self.tokenizer.advance();
         // type
-        self.output.push(self.tokenizer.current().unwrap().to_xml());
+        let type_t = &self.tokenizer.current().unwrap().clone();
+        self.output.push(type_t.to_xml());
         self.tokenizer.advance();
         // varName
-        self.output.push(self.tokenizer.current().unwrap().to_xml());
+        let name_t = self.tokenizer.current().unwrap().clone();
+        self.output.push(name_t.to_xml());
         self.tokenizer.advance();
+
+        let kind = if (*attr_t).keyword() == Keyword::Static {
+            SymbolKind::Static
+        } else {
+            SymbolKind::Field
+        };
+        self.symbol_table
+            .define(name_t.raw, (*type_t).raw.to_string(), kind);
+
         loop {
             if self.tokenizer.current().unwrap().raw == ";" {
                 break;
             }
-            self.output.push(self.tokenizer.current().unwrap().to_xml());
+            let name_t = self.tokenizer.current().unwrap().clone();
+            self.output.push(name_t.to_xml());
+            self.symbol_table
+                .define(name_t.raw, (*type_t).raw.to_string(), kind);
             self.tokenizer.advance();
         }
         // ;
@@ -175,16 +207,25 @@ impl<'a> CompileEngine<'a> {
         self.output.push(self.tokenizer.current().unwrap().to_xml());
         self.tokenizer.advance();
         // type
-        self.output.push(self.tokenizer.current().unwrap().to_xml());
+        let type_t = &self.tokenizer.current().unwrap().clone();
+        self.output.push(type_t.to_xml());
         self.tokenizer.advance();
         // varName
-        self.output.push(self.tokenizer.current().unwrap().to_xml());
+        let name_t = self.tokenizer.current().unwrap().clone();
+        self.output.push(name_t.to_xml());
+        self.symbol_table
+            .define(name_t.raw, (*type_t).raw.to_string(), SymbolKind::Var);
+
         self.tokenizer.advance();
         loop {
             if self.tokenizer.current().unwrap().raw == ";" {
                 break;
             }
-            self.output.push(self.tokenizer.current().unwrap().to_xml());
+
+            let name_t = self.tokenizer.current().unwrap().clone();
+            self.output.push(name_t.to_xml());
+            self.symbol_table
+                .define(name_t.raw, (*type_t).raw.to_string(), SymbolKind::Var);
             self.tokenizer.advance();
         }
         // ;
