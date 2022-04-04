@@ -125,10 +125,7 @@ pub struct Tokenizer {
 
 impl Tokenizer {
     pub fn new(tokens: Vec<Token>) -> Tokenizer {
-        Tokenizer {
-            tokens: tokens,
-            index: 0,
-        }
+        Tokenizer { tokens, index: 0 }
     }
 
     pub fn has_more_tokens(&self) -> bool {
@@ -140,11 +137,11 @@ impl Tokenizer {
         self.tokens.get(self.index)
     }
 
-    pub fn current(&mut self) -> Option<&Token> {
+    pub fn current(&self) -> Option<&Token> {
         self.tokens.get(self.index)
     }
 
-    pub fn to_xml(&mut self) -> String {
+    pub fn create_xml_string(&mut self) -> String {
         let mut xml = String::new();
         xml.push_str("<tokens>\n");
         while self.has_more_tokens() {
@@ -172,7 +169,7 @@ pub fn tokenize(file: &File) -> Tokenizer {
             while i < line_bytes.len() {
                 // 文字列
                 if line_bytes[i] == b'"' {
-                    let token = obtain_string_const(&line_bytes, i);
+                    let token = obtain_string_const(line_bytes, i);
                     // ダブルクォーテーションの数は除外して加算
                     i += token.raw.len() + 2;
                     tokens.push(token);
@@ -185,7 +182,7 @@ pub fn tokenize(file: &File) -> Tokenizer {
                         p += 1;
                     }
                     let str = str::from_utf8(&line_bytes[i..p]).unwrap();
-                    if is_num(&str) {
+                    if is_num(str) {
                         let token = Token::new(str.to_string(), TokenType::IntConst);
                         i += token.raw.len();
                         tokens.push(token);
@@ -203,16 +200,18 @@ pub fn tokenize(file: &File) -> Tokenizer {
                     continue;
                 }
                 if is_symbol(&line_bytes[i]) {
-                    let token = obtain_symbol(&line_bytes, i);
+                    let token = obtain_symbol(line_bytes, i);
                     i += token.raw.len();
                     tokens.push(token);
                     continue;
                 }
                 i += 1;
             }
+        } else {
+            panic!("{}", line.unwrap_err());
         }
     }
-    return Tokenizer::new(tokens);
+    Tokenizer::new(tokens)
 }
 
 fn obtain_string_const(bytes: &[u8], index: usize) -> Token {

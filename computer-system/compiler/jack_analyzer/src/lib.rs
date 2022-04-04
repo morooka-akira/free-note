@@ -2,6 +2,7 @@ use std::fs::File;
 
 mod compilation_engine;
 mod jack_tokenizer;
+mod symbol_table;
 use getopts::Matches;
 
 #[derive(Debug)]
@@ -33,7 +34,7 @@ pub fn run(config: &Config) {
     let mut tokenizer = jack_tokenizer::tokenize(&file);
 
     if config.is_tokens {
-        let xml = tokenizer.to_xml();
+        let xml = tokenizer.create_xml_string();
         println!("{}", xml);
         return;
     }
