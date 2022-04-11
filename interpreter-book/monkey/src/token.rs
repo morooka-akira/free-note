@@ -13,6 +13,13 @@ pub const INT: &str = "INT";
 // 演算子
 pub const ASSIGN: &str = "=";
 pub const PLUS: &str = "+";
+pub const MINUS: &str = "-";
+pub const BANG: &str = "!";
+pub const ASTERISK: &str = "*";
+pub const SLASH: &str = "/";
+
+pub const LT: &str = "<";
+pub const GT: &str = ">";
 // デリミタ
 pub const COMMA: &str = ",";
 pub const SEMICOLON: &str = ";";
@@ -24,7 +31,25 @@ pub const RBRACE: &str = "}";
 // キーワード
 pub const FUNCTION: &str = "FUNCTION";
 pub const LET: &str = "LET";
+pub const TRUE: &str = "TRUE";
+pub const FALSE: &str = "FALSE";
+pub const IF: &str = "IF";
+pub const ELSE: &str = "ELSE";
+pub const RETURN: &str = "RETURN";
 
 pub fn print_hello() {
     println!("Hello, world!");
+}
+
+pub fn lookup_ident(ident: &str) -> TokenType {
+    match ident {
+        "let" => LET,
+        "fn" => FUNCTION,
+        "true" => TRUE,
+        "false" => FALSE,
+        "if" => IF,
+        "else" => ELSE,
+        "return" => RETURN,
+        _ => IDENT,
+    }
 }

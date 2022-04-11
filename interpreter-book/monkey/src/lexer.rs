@@ -1,6 +1,6 @@
 use crate::token::{
-    Token, TokenType, ASSIGN, COMMA, EOF, FUNCTION, IDENT, ILLEGAL, INT, LBRACE, LET, LPAREN, PLUS,
-    RBRACE, RPAREN, SEMICOLON,
+    lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, EOF, FUNCTION, GT, IDENT,
+    ILLEGAL, INT, LBRACE, LET, LPAREN, LT, MINUS, PLUS, RBRACE, RPAREN, SEMICOLON, SLASH,
 };
 
 struct Lexer {
@@ -40,24 +40,53 @@ impl Lexer {
         self.input[position..self.position].to_string()
     }
 
+    fn read_number(&mut self) -> String {
+        let position = self.position;
+        while is_digit(self.ch) {
+            self.read_char();
+        }
+        self.input[position..self.position].to_string()
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.ch == ' ' || self.ch == '\t' || self.ch == '\n' || self.ch == '\r' {
+            self.read_char();
+        }
+    }
+
     pub fn next_token(&mut self) -> Token {
+        self.skip_whitespace();
         let token = match self.ch {
             '=' => new_token(ASSIGN, self.ch),
-            'l' => new_token(SEMICOLON, self.ch),
+            ';' => new_token(SEMICOLON, self.ch),
             '(' => new_token(LPAREN, self.ch),
             ')' => new_token(RPAREN, self.ch),
             ',' => new_token(COMMA, self.ch),
             '+' => new_token(PLUS, self.ch),
+            '-' => new_token(MINUS, self.ch),
+            '!' => new_token(BANG, self.ch),
+            '/' => new_token(SLASH, self.ch),
+            '*' => new_token(ASTERISK, self.ch),
+            '<' => new_token(LT, self.ch),
+            '>' => new_token(GT, self.ch),
             '{' => new_token(LBRACE, self.ch),
             '}' => new_token(RBRACE, self.ch),
             '\0' => new_token(EOF, '\0'),
             _ => {
                 if is_letter(self.ch) {
-                    Token {
-                        token_type: IDENT,
-                        literal: self.read_identifier(),
-                    }
+                    let ident = self.read_identifier();
+                    return Token {
+                        token_type: lookup_ident(&ident),
+                        literal: ident,
+                    };
+                } else if is_digit(self.ch) {
+                    let ident = self.read_number();
+                    return Token {
+                        token_type: INT,
+                        literal: ident,
+                    };
                 } else {
+                    println!("Unexpected character: {}", self.ch);
                     return new_token(ILLEGAL, self.ch);
                 }
             }
@@ -78,8 +107,14 @@ fn is_letter(ch: char) -> bool {
     ch.is_alphabetic() || ch == '_'
 }
 
+fn is_digit(ch: char) -> bool {
+    ch.is_digit(10)
+}
+
 #[cfg(test)]
 mod tests {
+
+    use crate::token::{ELSE, FALSE, IF, RETURN, TRUE};
 
     use super::*;
     struct NextTokenTest {
@@ -121,6 +156,14 @@ mod tests {
             };
 
             let result = add(five, ten);
+            !-/*5;
+            5 < 10 > 5;
+
+            if (5 < 10) {
+                return true;
+            } else {
+                return false;
+            }
         "#;
         let tests = [
             NextTokenTest {
@@ -268,8 +311,124 @@ mod tests {
                 expected_literal: ";",
             },
             NextTokenTest {
+                expected_type: BANG,
+                expected_literal: "!",
+            },
+            NextTokenTest {
+                expected_type: MINUS,
+                expected_literal: "-",
+            },
+            NextTokenTest {
+                expected_type: SLASH,
+                expected_literal: "/",
+            },
+            NextTokenTest {
+                expected_type: ASTERISK,
+                expected_literal: "*",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "5",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "5",
+            },
+            NextTokenTest {
+                expected_type: LT,
+                expected_literal: "<",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "10",
+            },
+            NextTokenTest {
+                expected_type: GT,
+                expected_literal: ">",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "5",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: IF,
+                expected_literal: "if",
+            },
+            NextTokenTest {
+                expected_type: LPAREN,
+                expected_literal: "(",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "5",
+            },
+            NextTokenTest {
+                expected_type: LT,
+                expected_literal: "<",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "10",
+            },
+            NextTokenTest {
+                expected_type: RPAREN,
+                expected_literal: ")",
+            },
+            NextTokenTest {
+                expected_type: LBRACE,
+                expected_literal: "{",
+            },
+            NextTokenTest {
+                expected_type: RETURN,
+                expected_literal: "return",
+            },
+            NextTokenTest {
+                expected_type: TRUE,
+                expected_literal: "true",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: RBRACE,
+                expected_literal: "}",
+            },
+            NextTokenTest {
+                expected_type: ELSE,
+                expected_literal: "else",
+            },
+            NextTokenTest {
+                expected_type: LBRACE,
+                expected_literal: "{",
+            },
+            NextTokenTest {
+                expected_type: RETURN,
+                expected_literal: "return",
+            },
+            NextTokenTest {
+                expected_type: FALSE,
+                expected_literal: "false",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: RBRACE,
+                expected_literal: "}",
+            },
+            NextTokenTest {
                 expected_type: EOF,
-                expected_literal: "",
+                expected_literal: "\0",
             },
         ];
 
