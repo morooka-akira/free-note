@@ -1,5 +1,6 @@
 pub(crate) type TokenType = &'static str;
 
+#[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
     pub literal: String,
@@ -17,6 +18,8 @@ pub const MINUS: &str = "-";
 pub const BANG: &str = "!";
 pub const ASTERISK: &str = "*";
 pub const SLASH: &str = "/";
+pub const EQ: &str = "==";
+pub const NOT_EQ: &str = "!=";
 
 pub const LT: &str = "<";
 pub const GT: &str = ">";
@@ -36,10 +39,6 @@ pub const FALSE: &str = "FALSE";
 pub const IF: &str = "IF";
 pub const ELSE: &str = "ELSE";
 pub const RETURN: &str = "RETURN";
-
-pub fn print_hello() {
-    println!("Hello, world!");
-}
 
 pub fn lookup_ident(ident: &str) -> TokenType {
     match ident {

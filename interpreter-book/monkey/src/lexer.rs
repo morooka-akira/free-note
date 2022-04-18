@@ -1,17 +1,17 @@
 use crate::token::{
-    lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, EOF, FUNCTION, GT, IDENT,
-    ILLEGAL, INT, LBRACE, LET, LPAREN, LT, MINUS, PLUS, RBRACE, RPAREN, SEMICOLON, SLASH,
+    lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, EOF, EQ, GT, ILLEGAL, INT,
+    LBRACE, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RPAREN, SEMICOLON, SLASH,
 };
 
-struct Lexer {
-    input: String,
+pub struct Lexer<'a> {
+    input: &'a str,
     position: usize,
     read_position: usize,
     ch: char,
 }
 
-impl Lexer {
-    fn new(input: String) -> Lexer {
+impl<'a> Lexer<'a> {
+    pub fn new(input: &str) -> Lexer {
         let mut l = Lexer {
             input,
             position: 0,
@@ -20,6 +20,14 @@ impl Lexer {
         };
         l.read_char();
         l
+    }
+
+    fn peek_char(&self) -> char {
+        if self.read_position >= self.input.len() {
+            '\0'
+        } else {
+            self.input.chars().nth(self.read_position).unwrap()
+        }
     }
 
     fn read_char(&mut self) {
@@ -57,14 +65,36 @@ impl Lexer {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.ch {
-            '=' => new_token(ASSIGN, self.ch),
+            '=' => {
+                if self.peek_char() == '=' {
+                    let ch = self.ch;
+                    self.read_char();
+                    Token {
+                        token_type: EQ,
+                        literal: ch.to_string() + &self.ch.to_string(),
+                    }
+                } else {
+                    new_token(ASSIGN, self.ch)
+                }
+            }
             ';' => new_token(SEMICOLON, self.ch),
             '(' => new_token(LPAREN, self.ch),
             ')' => new_token(RPAREN, self.ch),
             ',' => new_token(COMMA, self.ch),
             '+' => new_token(PLUS, self.ch),
             '-' => new_token(MINUS, self.ch),
-            '!' => new_token(BANG, self.ch),
+            '!' => {
+                if self.peek_char() == '=' {
+                    let ch = self.ch;
+                    self.read_char();
+                    Token {
+                        token_type: NOT_EQ,
+                        literal: ch.to_string() + &self.ch.to_string(),
+                    }
+                } else {
+                    new_token(BANG, self.ch)
+                }
+            }
             '/' => new_token(SLASH, self.ch),
             '*' => new_token(ASTERISK, self.ch),
             '<' => new_token(LT, self.ch),
@@ -96,9 +126,9 @@ impl Lexer {
     }
 }
 
-fn new_token(tokenType: TokenType, ch: char) -> Token {
+fn new_token(token_type: TokenType, ch: char) -> Token {
     Token {
-        token_type: tokenType,
+        token_type,
         literal: ch.to_string(),
     }
 }
@@ -113,8 +143,7 @@ fn is_digit(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::token::{ELSE, FALSE, IF, RETURN, TRUE};
+    use crate::token::{ELSE, FALSE, FUNCTION, IDENT, IF, LET, RETURN, TRUE};
 
     use super::*;
     struct NextTokenTest {
@@ -136,7 +165,7 @@ mod tests {
             },
         ];
 
-        let mut l = Lexer::new(input.to_string());
+        let mut l = Lexer::new(input);
 
         for t in tests.iter() {
             let tok = l.next_token();
@@ -164,6 +193,9 @@ mod tests {
             } else {
                 return false;
             }
+
+            10 == 10;
+            10 != 9;
         "#;
         let tests = [
             NextTokenTest {
@@ -427,12 +459,44 @@ mod tests {
                 expected_literal: "}",
             },
             NextTokenTest {
+                expected_type: INT,
+                expected_literal: "10",
+            },
+            NextTokenTest {
+                expected_type: EQ,
+                expected_literal: "==",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "10",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "10",
+            },
+            NextTokenTest {
+                expected_type: NOT_EQ,
+                expected_literal: "!=",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "9",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
                 expected_type: EOF,
                 expected_literal: "\0",
             },
         ];
 
-        let mut l = Lexer::new(input.to_string());
+        let mut l = Lexer::new(input);
 
         for t in tests.iter() {
             let tok = l.next_token();
