@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use crate::{
-    ast::{Identifier, LetStatement, Program, Statement},
+    ast::{Identifier, LetStatement, Program, ReturnStatement, Statement},
     lexer::Lexer,
-    token::{Token, TokenType, ASSIGN, EOF, IDENT, LET, SEMICOLON},
+    token::{Token, TokenType, ASSIGN, EOF, IDENT, LET, RETURN, SEMICOLON},
 };
 
 struct Parser<'a> {
@@ -48,6 +48,7 @@ impl<'a> Parser<'a> {
         println!("{}", self.cur_token.token_type);
         match self.cur_token.token_type {
             LET => self.parse_let_statement(),
+            RETURN => self.parse_return_statement(),
             _ => {
                 println!("token_type unknown");
                 None
@@ -75,6 +76,19 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
         Some(Box::new(LetStatement { token, name }))
+    }
+
+    fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
+        let token = Rc::clone(&self.cur_token);
+
+        self.next_token();
+
+        // TODO: とりあえずセミコロンまで値を読み飛ばす
+        while !self.cur_token_is(SEMICOLON) {
+            self.next_token();
+        }
+
+        Some(Box::new(ReturnStatement { token }))
     }
 
     fn expect_peek(&mut self, token_type: TokenType) -> bool {
@@ -111,7 +125,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{LetStatement, Node},
+        ast::{LetStatement, Node, ReturnStatement},
         lexer::Lexer,
     };
 
@@ -153,6 +167,40 @@ mod tests {
                 let_st.name.token_literal(),
                 expected.to_string(),
                 "let_st.name.token_literal not correct"
+            );
+        }
+    }
+
+    #[test]
+    fn test_return_statement() {
+        let input = r#"
+            return = 5;
+            return 10;
+            return = 993322;
+        "#;
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 3 {
+            panic!(
+                "program.statements does not contain 3 statements. got={}",
+                statement_len
+            );
+        }
+        for st in program.statements.iter() {
+            let return_st = (*st).downcast_ref::<ReturnStatement>().unwrap();
+            assert_eq!(
+                return_st.token_literal(),
+                "return",
+                "token_literal not correct"
             );
         }
     }

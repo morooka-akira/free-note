@@ -18,10 +18,6 @@ pub trait Expression: Node {
     fn expression_node(&self) -> bool;
 }
 
-pub struct Program {
-    pub statements: Vec<Box<dyn Statement>>,
-}
-
 use core::fmt::Debug;
 impl Debug for dyn Statement {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -30,6 +26,7 @@ impl Debug for dyn Statement {
     }
 }
 
+/* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct Identifier {
     pub token: Rc<Token>,
@@ -48,13 +45,19 @@ impl Node for Identifier {
         self.token.literal.to_string()
     }
 }
-
+/* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Rc<Token>,
     pub name: Identifier,
     // TODO: 後で実装
     // pub value: Box<dyn Expression>,
+}
+
+impl Node for LetStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
 }
 
 impl Statement for LetStatement {
@@ -64,10 +67,29 @@ impl Statement for LetStatement {
     }
 }
 
-impl Node for LetStatement {
+/* ----------------------------------------------- */
+#[derive(Debug)]
+pub struct ReturnStatement {
+    pub token: Rc<Token>,
+    // TODO: 後で実装
+    // pub return_value: Box<dyn Expression>,
+}
+
+impl Node for ReturnStatement {
     fn token_literal(&self) -> String {
         self.token.literal.to_string()
     }
+}
+
+impl Statement for ReturnStatement {
+    fn statement_node(&self) -> bool {
+        println!("return statement statement_node");
+        true
+    }
+}
+/* ----------------------------------------------- */
+pub struct Program {
+    pub statements: Vec<Box<dyn Statement>>,
 }
 
 impl Program {
