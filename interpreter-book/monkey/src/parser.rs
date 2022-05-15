@@ -75,7 +75,11 @@ impl<'a> Parser<'a> {
         while !self.cur_token_is(SEMICOLON) {
             self.next_token();
         }
-        Some(Box::new(LetStatement { token, name }))
+        Some(Box::new(LetStatement {
+            token,
+            name,
+            value: None,
+        }))
     }
 
     fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
@@ -88,7 +92,10 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        Some(Box::new(ReturnStatement { token }))
+        Some(Box::new(ReturnStatement {
+            token,
+            return_value: None,
+        }))
     }
 
     fn expect_peek(&mut self, token_type: TokenType) -> bool {
