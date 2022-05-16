@@ -28,6 +28,7 @@ impl Debug for dyn Statement {
 pub trait Expression: Node {
     fn expression_node(&self) -> bool;
 }
+impl_downcast!(Expression);
 
 impl Debug for dyn Expression {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

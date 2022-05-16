@@ -1,28 +1,62 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    ast::{Identifier, LetStatement, Program, ReturnStatement, Statement},
+    ast::{
+        Expression, ExpressionStatement, Identifier, LetStatement, Program, ReturnStatement,
+        Statement,
+    },
     lexer::Lexer,
     token::{Token, TokenType, ASSIGN, EOF, IDENT, LET, RETURN, SEMICOLON},
 };
 
+// トークンタイプが前置で出現した時
+type PrefixParseFn = fn(&mut Parser) -> Box<dyn Expression>;
+// トークンタイプが中置で出現した時
+type InfixParseFn = fn(dyn Expression) -> Result<Box<dyn Expression>, String>;
+
+enum Precedence {
+    LOWEST,
+    EQUALS,      // ==
+    LESSGREATER, // > or <
+    SUM,         // +
+    PRODUCT,     // *
+    PREFIX,      // -X or !X
+    CALL,        // myFunction(X)
+}
+
 struct Parser<'a> {
     lexer: &'a mut Lexer<'a>,
+
     cur_token: Rc<Token>,
     peek_token: Rc<Token>,
+
     errors: Vec<String>,
+
+    prefix_parse_fns: HashMap<TokenType, PrefixParseFn>,
+    infix_parse_fns: HashMap<TokenType, InfixParseFn>,
 }
 
 impl<'a> Parser<'a> {
     fn new(lexer: &'a mut Lexer<'a>) -> Parser<'a> {
         let cur_token = Rc::new(lexer.next_token());
         let peek_token = Rc::new(lexer.next_token());
-        Parser {
+        let mut parser = Parser {
             lexer,
             cur_token,
             peek_token,
             errors: Vec::new(),
-        }
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
+        };
+        parser.register_prefix(IDENT, Parser::parse_identifier);
+        parser
+    }
+
+    fn parse_identifier(parser: &mut Parser) -> Box<dyn Expression> {
+        Box::new(Identifier {
+            token: parser.cur_token.clone(),
+            value: parser.cur_token.literal.clone(),
+        })
     }
 
     fn next_token(&mut self) {
@@ -49,10 +83,7 @@ impl<'a> Parser<'a> {
         match self.cur_token.token_type {
             LET => self.parse_let_statement(),
             RETURN => self.parse_return_statement(),
-            _ => {
-                println!("token_type unknown");
-                None
-            }
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -98,6 +129,27 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_expression_statement(&mut self) -> Option<Box<dyn Statement>> {
+        let token = Rc::clone(&self.cur_token);
+
+        let expression = self.parse_expression(Precedence::LOWEST);
+
+        if self.peek_token_is(SEMICOLON) {
+            self.next_token();
+        }
+
+        Some(Box::new(ExpressionStatement { token, expression }))
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
+        if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.token_type) {
+            let left_exp = prefix(self);
+            Some(left_exp)
+        } else {
+            None
+        }
+    }
+
     fn expect_peek(&mut self, token_type: TokenType) -> bool {
         if self.peek_token_is(token_type) {
             self.next_token();
@@ -127,12 +179,20 @@ impl<'a> Parser<'a> {
         );
         self.errors.push(msg);
     }
+
+    fn register_prefix(&mut self, token_type: TokenType, parse_fn: PrefixParseFn) {
+        self.prefix_parse_fns.insert(token_type, parse_fn);
+    }
+
+    fn register_infix(&mut self, token_type: TokenType, parse_fn: InfixParseFn) {
+        self.infix_parse_fns.insert(token_type, parse_fn);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{LetStatement, Node, ReturnStatement},
+        ast::{ExpressionStatement, Identifier, LetStatement, Node, ReturnStatement},
         lexer::Lexer,
     };
 
@@ -209,6 +269,36 @@ mod tests {
                 "return",
                 "token_literal not correct"
             );
+        }
+    }
+
+    #[test]
+    fn test_identifier_expression() {
+        let input = "foobar;";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 1 {
+            panic!(
+                "program.statements does not contain 1 statements. got={}",
+                statement_len
+            );
+        }
+        let st = &program.statements[0];
+        let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+        if let Some(exp) = &exp_st.expression {
+            let ident = exp.downcast_ref::<Identifier>().unwrap();
+            assert_eq!(ident.value, "foobar");
+            assert_eq!(ident.token_literal(), "foobar");
         }
     }
 
