@@ -60,6 +60,31 @@ impl Node for Identifier {
         self.value.clone()
     }
 }
+
+/* ----------------------------------------------- */
+pub struct IntegerLiteral {
+    pub token: Rc<Token>,
+    pub value: i64,
+}
+
+impl Node for IntegerLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push_str(format!("{}", self.value).as_str());
+        buf
+    }
+}
+
+impl Expression for IntegerLiteral {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
 /* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct LetStatement {
