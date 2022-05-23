@@ -86,6 +86,34 @@ impl Expression for IntegerLiteral {
 }
 
 /* ----------------------------------------------- */
+pub struct PrefixExpression {
+    pub token: Rc<Token>,
+    pub operator: String,
+    pub right: Box<dyn Expression>,
+}
+
+impl Node for PrefixExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push('(');
+        buf.push_str(self.operator.as_str());
+        buf.push_str(self.right.string().as_str());
+        buf.push(')');
+        buf
+    }
+}
+
+impl Expression for PrefixExpression {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Rc<Token>,

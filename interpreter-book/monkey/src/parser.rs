@@ -2,11 +2,11 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{
-        Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Program,
-        ReturnStatement, Statement,
+        Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement,
+        PrefixExpression, Program, ReturnStatement, Statement,
     },
     lexer::Lexer,
-    token::{Token, TokenType, ASSIGN, EOF, IDENT, INT, LET, RETURN, SEMICOLON},
+    token::{Token, TokenType, ASSIGN, BANG, EOF, IDENT, INT, LET, MINUS, RETURN, SEMICOLON},
 };
 
 // トークンタイプが前置で出現した時
@@ -50,6 +50,8 @@ impl<'a> Parser<'a> {
         };
         parser.register_prefix(IDENT, Parser::parse_identifier);
         parser.register_prefix(INT, Parser::parse_integer_literal);
+        parser.register_prefix(BANG, Parser::parse_prefix_expression);
+        parser.register_prefix(MINUS, Parser::parse_prefix_expression);
         parser
     }
 
@@ -139,6 +141,7 @@ impl<'a> Parser<'a> {
         if let Some(prefix) = self.prefix_parse_fns.get(&self.cur_token.token_type) {
             prefix(self)
         } else {
+            self.no_prefix_parse_fn_error(self.cur_token.token_type);
             None
         }
     }
@@ -156,6 +159,27 @@ impl<'a> Parser<'a> {
             Ok(value) => Some(Box::new(IntegerLiteral { token, value })),
             Err(err) => {
                 parser.errors.push(format!("{}", err));
+                None
+            }
+        }
+    }
+
+    fn parse_prefix_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+        let operator = token.literal.as_str();
+
+        parser.next_token();
+
+        match parser.parse_expression(Precedence::PREFIX) {
+            Some(exp) => Some(Box::new(PrefixExpression {
+                token: Rc::clone(&token),
+                operator: operator.to_string(),
+                right: exp,
+            })),
+            None => {
+                parser
+                    .errors
+                    .push("no prefix parse function for this token".to_string());
                 None
             }
         }
@@ -198,13 +222,19 @@ impl<'a> Parser<'a> {
     fn register_infix(&mut self, token_type: TokenType, parse_fn: InfixParseFn) {
         self.infix_parse_fns.insert(token_type, parse_fn);
     }
+
+    fn no_prefix_parse_fn_error(&mut self, token_type: TokenType) {
+        let msg = format!("no prefix parse function for {} found", token_type);
+        self.errors.push(msg);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
         ast::{
-            ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Node, ReturnStatement,
+            Expression, ExpressionStatement, Identifier, IntegerLiteral, LetStatement, Node,
+            PrefixExpression, ReturnStatement,
         },
         lexer::Lexer,
     };
@@ -345,6 +375,48 @@ mod tests {
             assert_eq!(literal.value, 5);
         } else {
             panic!("exp_st.expression is None");
+        }
+    }
+
+    #[test]
+    fn test_parsing_prefix_expressions() {
+        let prefix_tests = vec![("!5;", "!", 5), ("-15;", "-", 15)];
+
+        for (input, operator, integer_value) in prefix_tests {
+            let mut l = Lexer::new(input);
+            let mut p = super::Parser::new(&mut l);
+
+            let program = p.parse_program();
+            if program.is_err() {
+                panic!("parse_program() returned an error");
+            }
+            check_parser_errors(&p);
+
+            let program = program.unwrap();
+            let statement_len = program.statements.len();
+            if statement_len != 1 {
+                panic!(
+                    "program.statements does not contain 1 statements. got={}",
+                    statement_len
+                );
+            }
+            let st = &program.statements[0];
+            let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+            if let Some(exp) = &exp_st.expression {
+                let prefix_exp = exp.downcast_ref::<PrefixExpression>().unwrap();
+                assert_eq!(prefix_exp.operator, operator);
+                test_integer_literal(prefix_exp.right.as_ref(), integer_value);
+            } else {
+                panic!("exp_st.expression is None");
+            }
+        }
+
+        fn test_integer_literal(i_literal: &dyn Expression, value: i64) {
+            if let Some(literal) = i_literal.downcast_ref::<IntegerLiteral>() {
+                assert_eq!(literal.value, value);
+            } else {
+                panic!("i_literal is not IntegerLiteral");
+            }
         }
     }
 
