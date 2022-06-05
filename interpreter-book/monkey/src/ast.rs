@@ -114,6 +114,38 @@ impl Expression for PrefixExpression {
 }
 
 /* ----------------------------------------------- */
+pub struct InfixExpression {
+    pub token: Rc<Token>,
+    pub left: Box<dyn Expression>,
+    pub operator: String,
+    pub right: Box<dyn Expression>,
+}
+
+impl Node for InfixExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push('(');
+        buf.push_str(self.left.string().as_str());
+        buf.push(' ');
+        buf.push_str(self.operator.as_str());
+        buf.push(' ');
+        buf.push_str(self.right.string().as_str());
+        buf.push(')');
+        buf
+    }
+}
+
+impl Expression for InfixExpression {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Rc<Token>,
