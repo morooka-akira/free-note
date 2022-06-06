@@ -534,6 +534,38 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_operator_precedence_parsing() {
+        let tests = vec![
+            ("-a * b", "((-a) * b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a + b - c", "((a + b) - c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+            ("3 + 4; - 5 * 5", "(3 + 4)((-5) * 5)"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+            ("5 > 4 != 3 < 4", "((5 > 4) != (3 < 4))"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+        ];
+        for (input, expected) in tests {
+            let mut l = Lexer::new(input);
+            let mut p = super::Parser::new(&mut l);
+            let program = p.parse_program();
+            if program.is_err() {
+                panic!("parse_program() returned an error");
+            }
+            check_parser_errors(&p);
+            let program = program.unwrap();
+            assert_eq!(program.string(), expected);
+        }
+    }
+
     fn test_integer_literal(i_literal: &dyn Expression, value: i64) {
         if let Some(literal) = i_literal.downcast_ref::<IntegerLiteral>() {
             assert_eq!(literal.value, value);
