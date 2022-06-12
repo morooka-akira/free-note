@@ -309,6 +309,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::any::Any;
+
     use crate::{
         ast::{
             Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral,
@@ -493,7 +495,7 @@ mod tests {
     #[test]
     fn test_parsing_infix_expressions() {
         let infix_tests = vec![
-            ("5 + 5;", 5, "+", 5),
+            ("5 + 5;", 5i64, "+", 5i64),
             ("5 - 5;", 5, "-", 5),
             ("5 * 5;", 5, "*", 5),
             ("5 / 5;", 5, "/", 5),
@@ -524,10 +526,7 @@ mod tests {
             let st = &program.statements[0];
             let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
             if let Some(exp) = &exp_st.expression {
-                let infix_exp = exp.downcast_ref::<InfixExpression>().unwrap();
-                assert_eq!(infix_exp.operator, operator);
-                test_integer_literal(infix_exp.left.as_ref(), left_value);
-                test_integer_literal(infix_exp.right.as_ref(), right_value);
+                test_infix_expression(exp.as_ref(), &left_value, operator, &right_value);
             } else {
                 panic!("exp_st.expression is None");
             }
@@ -563,6 +562,42 @@ mod tests {
             check_parser_errors(&p);
             let program = program.unwrap();
             assert_eq!(program.string(), expected);
+        }
+    }
+
+    fn test_infix_expression(
+        exp: &dyn Expression,
+        left: &dyn Any,
+        operator: &str,
+        right: &dyn Any,
+    ) {
+        let op_exp = exp.downcast_ref::<InfixExpression>().unwrap();
+        test_literal_expression(op_exp.left.as_ref(), left);
+        assert_eq!(op_exp.operator, operator);
+        test_literal_expression(op_exp.right.as_ref(), right);
+    }
+
+    fn test_literal_expression(exp: &dyn Expression, expected: &dyn Any) {
+        if let Some(v) = expected.downcast_ref::<i64>() {
+            test_integer_literal(exp, *v);
+        } else if let Some(v) = expected.downcast_ref::<String>() {
+            test_identifier(exp, v);
+        } else {
+            panic!("invalid expected : {:?}.", expected);
+        }
+    }
+
+    fn test_identifier(exp: &dyn Expression, value: &str) {
+        let ident = (*exp).downcast_ref::<Identifier>().unwrap();
+        if ident.value != value {
+            panic!("ident.value is not {}. got={}", value, ident.value);
+        }
+        if ident.token_literal() != value {
+            panic!(
+                "ident.token_literal is not {}. got={}",
+                value,
+                ident.token_literal()
+            );
         }
     }
 
