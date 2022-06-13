@@ -3,13 +3,13 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{
-        Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral, LetStatement,
-        PrefixExpression, Program, ReturnStatement, Statement,
+        Boolean, Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral,
+        LetStatement, PrefixExpression, Program, ReturnStatement, Statement,
     },
     lexer::Lexer,
     token::{
-        Token, TokenType, ASSIGN, ASTERISK, BANG, EOF, EQ, GT, IDENT, INT, LET, LT, MINUS, NOT_EQ,
-        PLUS, RETURN, SEMICOLON, SLASH,
+        Token, TokenType, ASSIGN, ASTERISK, BANG, EOF, EQ, FALSE, GT, IDENT, INT, LET, LT, MINUS,
+        NOT_EQ, PLUS, RETURN, SEMICOLON, SLASH, TRUE,
     },
 };
 
@@ -69,6 +69,8 @@ impl<'a> Parser<'a> {
         parser.register_prefix(INT, Parser::parse_integer_literal);
         parser.register_prefix(BANG, Parser::parse_prefix_expression);
         parser.register_prefix(MINUS, Parser::parse_prefix_expression);
+        parser.register_prefix(TRUE, Parser::parse_boolean);
+        parser.register_prefix(FALSE, Parser::parse_boolean);
 
         parser.register_infix(PLUS, Parser::parse_infix_expression);
         parser.register_infix(MINUS, Parser::parse_infix_expression);
@@ -204,6 +206,13 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_boolean(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+        Some(Box::new(Boolean {
+            token: parser.cur_token.clone(),
+            value: parser.cur_token_is(TRUE),
+        }))
+    }
+
     fn parse_prefix_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
         let operator = token.literal.as_str();
@@ -313,7 +322,7 @@ mod tests {
 
     use crate::{
         ast::{
-            Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral,
+            Boolean, Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral,
             LetStatement, Node, PrefixExpression, ReturnStatement,
         },
         lexer::Lexer,
@@ -459,8 +468,44 @@ mod tests {
     }
 
     #[test]
+    fn test_boolean_expression() {
+        let input = "true;";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 1 {
+            panic!(
+                "program.statements does not contain 1 statements. got={}",
+                statement_len
+            );
+        }
+        let st = &program.statements[0];
+        let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+        if let Some(boolean) = &exp_st.expression {
+            let literal = boolean.downcast_ref::<Boolean>().unwrap();
+            assert!(literal.value);
+        } else {
+            panic!("exp_st.expression is None");
+        }
+    }
+
+    #[test]
     fn test_parsing_prefix_expressions() {
-        let prefix_tests = vec![("!5;", "!", 5), ("-15;", "-", 15)];
+        let prefix_tests: Vec<(&str, &str, &dyn Any)> = vec![
+            ("!5;", "!", &5_i64),
+            ("-15;", "-", &15_i64),
+            ("!true;", "!", &true),
+            ("!false;", "!", &false),
+        ];
 
         for (input, operator, integer_value) in prefix_tests {
             let mut l = Lexer::new(input);
@@ -485,7 +530,7 @@ mod tests {
             if let Some(exp) = &exp_st.expression {
                 let prefix_exp = exp.downcast_ref::<PrefixExpression>().unwrap();
                 assert_eq!(prefix_exp.operator, operator);
-                test_integer_literal(prefix_exp.right.as_ref(), integer_value);
+                test_literal_expression(prefix_exp.right.as_ref(), integer_value);
             } else {
                 panic!("exp_st.expression is None");
             }
@@ -494,15 +539,18 @@ mod tests {
 
     #[test]
     fn test_parsing_infix_expressions() {
-        let infix_tests = vec![
-            ("5 + 5;", 5i64, "+", 5i64),
-            ("5 - 5;", 5, "-", 5),
-            ("5 * 5;", 5, "*", 5),
-            ("5 / 5;", 5, "/", 5),
-            ("5 > 5;", 5, ">", 5),
-            ("5 < 5;", 5, "<", 5),
-            ("5 == 5;", 5, "==", 5),
-            ("5 != 5;", 5, "!=", 5),
+        let infix_tests: Vec<(&str, &dyn Any, &str, &dyn Any)> = vec![
+            ("5 + 5;", &5_i64, "+", &5_i64),
+            ("5 - 5;", &5_i64, "-", &5_i64),
+            ("5 * 5;", &5_i64, "*", &5_i64),
+            ("5 / 5;", &5_i64, "/", &5_i64),
+            ("5 > 5;", &5_i64, ">", &5_i64),
+            ("5 < 5;", &5_i64, "<", &5_i64),
+            ("5 == 5;", &5_i64, "==", &5_i64),
+            ("5 != 5;", &5_i64, "!=", &5_i64),
+            ("true == true;", &true, "==", &true),
+            ("true != false;", &true, "!=", &false),
+            ("false == false;", &false, "==", &false),
         ];
 
         for (input, left_value, operator, right_value) in infix_tests {
@@ -526,7 +574,7 @@ mod tests {
             let st = &program.statements[0];
             let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
             if let Some(exp) = &exp_st.expression {
-                test_infix_expression(exp.as_ref(), &left_value, operator, &right_value);
+                test_infix_expression(exp.as_ref(), left_value, operator, right_value);
             } else {
                 panic!("exp_st.expression is None");
             }
@@ -551,6 +599,10 @@ mod tests {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("true", "true"),
+            ("false", "false"),
+            ("3 > 5 == false", "((3 > 5) == false)"),
+            ("3 < 5 == true", "((3 < 5) == true)"),
         ];
         for (input, expected) in tests {
             let mut l = Lexer::new(input);
@@ -582,6 +634,8 @@ mod tests {
             test_integer_literal(exp, *v);
         } else if let Some(v) = expected.downcast_ref::<String>() {
             test_identifier(exp, v);
+        } else if let Some(v) = expected.downcast_ref::<bool>() {
+            test_boolean_literal(exp, *v);
         } else {
             panic!("invalid expected : {:?}.", expected);
         }
@@ -606,6 +660,14 @@ mod tests {
             assert_eq!(literal.value, value);
         } else {
             panic!("i_literal is not IntegerLiteral");
+        }
+    }
+
+    fn test_boolean_literal(exp: &dyn Expression, value: bool) {
+        if let Some(literal) = exp.downcast_ref::<Boolean>() {
+            assert_eq!(literal.value, value);
+        } else {
+            panic!("exp is not Boolean");
         }
     }
 

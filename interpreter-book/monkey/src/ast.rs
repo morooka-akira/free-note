@@ -244,6 +244,28 @@ impl Statement for ExpressionStatement {
 }
 
 /* ----------------------------------------------- */
+pub struct Boolean {
+    pub token: Rc<Token>,
+    pub value: bool,
+}
+
+impl Node for Boolean {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        self.token.literal.to_string()
+    }
+}
+
+impl Expression for Boolean {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
 pub struct Program {
     pub statements: Vec<Box<dyn Statement>>,
 }
