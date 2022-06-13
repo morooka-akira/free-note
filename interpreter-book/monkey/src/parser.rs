@@ -8,8 +8,8 @@ use crate::{
     },
     lexer::Lexer,
     token::{
-        Token, TokenType, ASSIGN, ASTERISK, BANG, EOF, EQ, FALSE, GT, IDENT, INT, LET, LT, MINUS,
-        NOT_EQ, PLUS, RETURN, SEMICOLON, SLASH, TRUE,
+        Token, TokenType, ASSIGN, ASTERISK, BANG, EOF, EQ, FALSE, GT, IDENT, INT, LET, LPAREN, LT,
+        MINUS, NOT_EQ, PLUS, RETURN, RPAREN, SEMICOLON, SLASH, TRUE,
     },
 };
 
@@ -71,6 +71,7 @@ impl<'a> Parser<'a> {
         parser.register_prefix(MINUS, Parser::parse_prefix_expression);
         parser.register_prefix(TRUE, Parser::parse_boolean);
         parser.register_prefix(FALSE, Parser::parse_boolean);
+        parser.register_prefix(LPAREN, Parser::parse_grouped_expression);
 
         parser.register_infix(PLUS, Parser::parse_infix_expression);
         parser.register_infix(MINUS, Parser::parse_infix_expression);
@@ -231,6 +232,17 @@ impl<'a> Parser<'a> {
                     .push("no prefix parse function for this token".to_string());
                 None
             }
+        }
+    }
+
+    fn parse_grouped_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+        parser.next_token();
+
+        let exp = parser.parse_expression(Precedence::LOWEST);
+        if parser.expect_peek(RPAREN) {
+            exp
+        } else {
+            None
         }
     }
 
@@ -603,6 +615,11 @@ mod tests {
             ("false", "false"),
             ("3 > 5 == false", "((3 > 5) == false)"),
             ("3 < 5 == true", "((3 < 5) == true)"),
+            ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2", "((5 + 5) * 2)"),
+            ("2 / (5 + 5)", "(2 / (5 + 5))"),
+            ("-(5 + 5)", "(-(5 + 5))"),
+            ("!(true == true)", "(!(true == true))"),
         ];
         for (input, expected) in tests {
             let mut l = Lexer::new(input);
