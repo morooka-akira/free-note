@@ -3,13 +3,14 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{
-        Boolean, Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral,
-        LetStatement, PrefixExpression, Program, ReturnStatement, Statement,
+        BlockStatement, Boolean, Expression, ExpressionStatement, Identifier, IfExpression,
+        InfixExpression, IntegerLiteral, LetStatement, PrefixExpression, Program, ReturnStatement,
+        Statement,
     },
     lexer::Lexer,
     token::{
-        Token, TokenType, ASSIGN, ASTERISK, BANG, EOF, EQ, FALSE, GT, IDENT, INT, LET, LPAREN, LT,
-        MINUS, NOT_EQ, PLUS, RETURN, RPAREN, SEMICOLON, SLASH, TRUE,
+        Token, TokenType, ASSIGN, ASTERISK, BANG, ELSE, EOF, EQ, FALSE, GT, IDENT, IF, INT, LBRACE,
+        LET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RETURN, RPAREN, SEMICOLON, SLASH, TRUE,
     },
 };
 
@@ -72,6 +73,7 @@ impl<'a> Parser<'a> {
         parser.register_prefix(TRUE, Parser::parse_boolean);
         parser.register_prefix(FALSE, Parser::parse_boolean);
         parser.register_prefix(LPAREN, Parser::parse_grouped_expression);
+        parser.register_prefix(IF, Parser::parse_if_expression);
 
         parser.register_infix(PLUS, Parser::parse_infix_expression);
         parser.register_infix(MINUS, Parser::parse_infix_expression);
@@ -272,6 +274,62 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_if_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+
+        if !parser.expect_peek(LPAREN) {
+            return None;
+        }
+
+        parser.next_token();
+        let condition = parser.parse_expression(Precedence::LOWEST);
+
+        if !parser.expect_peek(RPAREN) {
+            return None;
+        }
+
+        if !parser.expect_peek(LBRACE) {
+            return None;
+        }
+
+        let consequence = parser.parse_block_statement();
+
+        let alternative = if parser.peek_token_is(ELSE) {
+            parser.next_token();
+
+            if !parser.expect_peek(LBRACE) {
+                return None;
+            }
+
+            parser.parse_block_statement()
+        } else {
+            None
+        };
+
+        Some(Box::new(IfExpression {
+            token,
+            condition: condition.unwrap(),
+            consequence: consequence.unwrap(),
+            alternative,
+        }))
+    }
+
+    fn parse_block_statement(&mut self) -> Option<Box<BlockStatement>> {
+        let token = Rc::clone(&self.cur_token);
+        let mut statements: Vec<Box<dyn Statement>> = vec![];
+
+        self.next_token();
+
+        while !self.cur_token_is(RBRACE) && !self.peek_token_is(EOF) {
+            if let Some(stmt) = self.parse_statement() {
+                statements.push(stmt);
+            }
+            self.next_token();
+        }
+
+        Some(Box::new(BlockStatement { token, statements }))
+    }
+
     fn expect_peek(&mut self, token_type: TokenType) -> bool {
         if self.peek_token_is(token_type) {
             self.next_token();
@@ -334,8 +392,8 @@ mod tests {
 
     use crate::{
         ast::{
-            Boolean, Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral,
-            LetStatement, Node, PrefixExpression, ReturnStatement,
+            Boolean, Expression, ExpressionStatement, Identifier, IfExpression, InfixExpression,
+            IntegerLiteral, LetStatement, Node, PrefixExpression, ReturnStatement,
         },
         lexer::Lexer,
     };
@@ -590,6 +648,109 @@ mod tests {
             } else {
                 panic!("exp_st.expression is None");
             }
+        }
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let input = "if (x < y) { x }";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 1 {
+            panic!(
+                "program.statements does not contain 1 statements. got={}",
+                statement_len
+            );
+        }
+        let st = &program.statements[0];
+        let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+        if let Some(exp) = &exp_st.expression {
+            let if_exp = (*exp).downcast_ref::<IfExpression>().unwrap();
+            test_infix_expression(
+                if_exp.condition.as_ref(),
+                &"x".to_string(),
+                "<",
+                &"y".to_string(),
+            );
+            if if_exp.consequence.statements.len() != 1 {
+                panic!(
+                    "consequence.statements does not contain 1 statements. got={}",
+                    if_exp.consequence.statements.len()
+                );
+            }
+            let st = &if_exp.consequence.statements[0];
+            let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+            if let Some(exp) = &exp_st.expression {
+                test_identifier(exp.as_ref(), "x");
+            }
+            if if_exp.alternative.is_some() {
+                panic!("if_exp.alternative is not None");
+            }
+        } else {
+            panic!("exp_st.expression is None");
+        }
+    }
+
+    #[test]
+    fn test_if_else_expression() {
+        let input = "if (x < y) { x } else { y }";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 1 {
+            panic!(
+                "program.statements does not contain 1 statements. got={}",
+                statement_len
+            );
+        }
+        let st = &program.statements[0];
+        let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+        if let Some(exp) = &exp_st.expression {
+            let if_exp = (*exp).downcast_ref::<IfExpression>().unwrap();
+            test_infix_expression(
+                if_exp.condition.as_ref(),
+                &"x".to_string(),
+                "<",
+                &"y".to_string(),
+            );
+            if if_exp.consequence.statements.len() != 1 {
+                panic!(
+                    "consequence.statements does not contain 1 statements. got={}",
+                    if_exp.consequence.statements.len()
+                );
+            }
+            let con_st = &if_exp.consequence.statements[0];
+            let exp_st = (*con_st).downcast_ref::<ExpressionStatement>().unwrap();
+            if let Some(exp) = &exp_st.expression {
+                test_identifier(exp.as_ref(), "x");
+            }
+
+            let alt_st = &if_exp.alternative.as_ref().unwrap().statements[0];
+            let exp_st = (*alt_st).downcast_ref::<ExpressionStatement>().unwrap();
+            if let Some(exp) = &exp_st.expression {
+                test_identifier(exp.as_ref(), "y");
+            }
+        } else {
+            panic!("exp_st.expression is None");
         }
     }
 
