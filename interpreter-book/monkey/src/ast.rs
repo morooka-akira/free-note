@@ -146,6 +146,41 @@ impl Expression for InfixExpression {
 }
 
 /* ----------------------------------------------- */
+pub struct IfExpression {
+    pub token: Rc<Token>,
+    pub condition: Box<dyn Expression>,
+    pub consequence: Box<BlockStatement>,
+    pub alternative: Option<Box<BlockStatement>>,
+}
+
+impl Node for IfExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+
+        buf.push_str("if");
+        buf.push_str(self.condition.string().as_str());
+        buf.push(' ');
+        buf.push_str(self.consequence.string().as_str());
+
+        if let Some(alt) = &self.alternative {
+            buf.push_str("else ");
+            buf.push_str(alt.string().as_str());
+        }
+        buf
+    }
+}
+
+impl Expression for IfExpression {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Rc<Token>,
@@ -239,6 +274,32 @@ impl Node for ExpressionStatement {
 impl Statement for ExpressionStatement {
     fn statement_node(&self) -> bool {
         println!("expression statement statement_node");
+        true
+    }
+}
+
+/* ----------------------------------------------- */
+pub struct BlockStatement {
+    pub token: Rc<Token>,
+    pub statements: Vec<Box<dyn Statement>>,
+}
+
+impl Node for BlockStatement {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        for stmt in &self.statements {
+            buf.push_str(stmt.string().as_str());
+        }
+        buf
+    }
+}
+
+impl Statement for BlockStatement {
+    fn statement_node(&self) -> bool {
         true
     }
 }
