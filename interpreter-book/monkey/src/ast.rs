@@ -181,6 +181,42 @@ impl Expression for IfExpression {
 }
 
 /* ----------------------------------------------- */
+pub struct FunctionLiteral {
+    pub token: Rc<Token>,
+    pub parameters: Vec<Identifier>,
+    pub body: Box<BlockStatement>,
+}
+
+impl Node for FunctionLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let params = self
+            .parameters
+            .iter()
+            .map(|p| p.string())
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        let mut buf = String::new();
+        buf.push_str(self.token_literal().as_str());
+        buf.push('(');
+        buf.push_str(&params);
+        buf.push(')');
+        buf.push_str(self.body.string().as_str());
+        buf
+    }
+}
+
+impl Expression for FunctionLiteral {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Rc<Token>,

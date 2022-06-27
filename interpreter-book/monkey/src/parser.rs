@@ -3,14 +3,15 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean, Expression, ExpressionStatement, Identifier, IfExpression,
-        InfixExpression, IntegerLiteral, LetStatement, PrefixExpression, Program, ReturnStatement,
-        Statement,
+        BlockStatement, Boolean, Expression, ExpressionStatement, FunctionLiteral, Identifier,
+        IfExpression, InfixExpression, IntegerLiteral, LetStatement, PrefixExpression, Program,
+        ReturnStatement, Statement,
     },
     lexer::Lexer,
     token::{
-        Token, TokenType, ASSIGN, ASTERISK, BANG, ELSE, EOF, EQ, FALSE, GT, IDENT, IF, INT, LBRACE,
-        LET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RETURN, RPAREN, SEMICOLON, SLASH, TRUE,
+        Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, ELSE, EOF, EQ, FALSE, FUNCTION, GT, IDENT,
+        IF, INT, LBRACE, LET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RETURN, RPAREN, SEMICOLON,
+        SLASH, TRUE,
     },
 };
 
@@ -74,6 +75,7 @@ impl<'a> Parser<'a> {
         parser.register_prefix(FALSE, Parser::parse_boolean);
         parser.register_prefix(LPAREN, Parser::parse_grouped_expression);
         parser.register_prefix(IF, Parser::parse_if_expression);
+        parser.register_prefix(FUNCTION, Parser::parse_function_literal);
 
         parser.register_infix(PLUS, Parser::parse_infix_expression);
         parser.register_infix(MINUS, Parser::parse_infix_expression);
@@ -314,6 +316,61 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_function_literal(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+
+        if !parser.expect_peek(LPAREN) {
+            return None;
+        }
+
+        let parameters = parser.parse_function_parameters();
+
+        if !parser.expect_peek(LBRACE) {
+            return None;
+        }
+
+        let body = parser.parse_block_statement();
+
+        Some(Box::new(FunctionLiteral {
+            token,
+            parameters: parameters.unwrap(),
+            body: body.unwrap(),
+        }))
+    }
+
+    fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
+        let mut identifiers = Vec::new();
+
+        if self.peek_token_is(RPAREN) {
+            self.next_token();
+            return Some(identifiers);
+        }
+
+        self.next_token();
+        let ident = Identifier {
+            token: self.cur_token.clone(),
+            value: self.cur_token.literal.clone(),
+        };
+        identifiers.push(ident);
+
+        while self.peek_token_is(COMMA) {
+            // ,はスキップ
+            self.next_token();
+            self.next_token();
+            let ident = Identifier {
+                token: self.cur_token.clone(),
+                value: self.cur_token.literal.clone(),
+            };
+            identifiers.push(ident);
+        }
+
+        if !self.expect_peek(RPAREN) {
+            return None;
+        }
+
+        Some(identifiers)
+    }
+
     fn parse_block_statement(&mut self) -> Option<Box<BlockStatement>> {
         let token = Rc::clone(&self.cur_token);
         let mut statements: Vec<Box<dyn Statement>> = vec![];
@@ -392,8 +449,8 @@ mod tests {
 
     use crate::{
         ast::{
-            Boolean, Expression, ExpressionStatement, Identifier, IfExpression, InfixExpression,
-            IntegerLiteral, LetStatement, Node, PrefixExpression, ReturnStatement,
+            Boolean, Expression, ExpressionStatement, FunctionLiteral, Identifier, IfExpression,
+            InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression, ReturnStatement,
         },
         lexer::Lexer,
     };
@@ -755,6 +812,85 @@ mod tests {
     }
 
     #[test]
+    fn test_function_literal_parsing() {
+        let input = "fn(x, y) { x + y; }";
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 1 {
+            panic!(
+                "program.statements does not contain 1 statements. got={}",
+                statement_len
+            );
+        }
+        let st = &program.statements[0];
+        let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+        if let Some(exp) = &exp_st.expression {
+            let fun_exp = (*exp).downcast_ref::<FunctionLiteral>().unwrap();
+            if fun_exp.parameters.len() != 2 {
+                panic!(
+                    "fun_exp.parameters does not contain 2 parameters. got={}",
+                    fun_exp.parameters.len()
+                );
+            }
+            test_literal_expression(&fun_exp.parameters[0], &"x");
+            test_literal_expression(&fun_exp.parameters[1], &"y");
+            let st = &fun_exp.body.as_ref().statements[0];
+            let body_stmt = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+            let ex = body_stmt.expression.as_ref().unwrap();
+            test_infix_expression(ex.as_ref(), &"x", "+", &"y");
+        }
+    }
+
+    #[test]
+    fn test_function_parameter_parsing() {
+        let input: Vec<(&str, Vec<&str>)> = vec![
+            ("fn() {}", vec![]),
+            ("fn(x) {}", vec!["x"]),
+            ("fn(x, y) {}", vec!["x", "y"]),
+        ];
+
+        for (input, expected) in input {
+            let mut l = Lexer::new(input);
+            let mut p = super::Parser::new(&mut l);
+            let program = p.parse_program();
+            if program.is_err() {
+                panic!("parse_program() returned an error");
+            }
+            check_parser_errors(&p);
+            let program = program.unwrap();
+            let statement_len = program.statements.len();
+            if statement_len != 1 {
+                panic!(
+                    "program.statements does not contain 1 statements. got={}",
+                    statement_len
+                );
+            }
+            let st = &program.statements[0];
+            let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+            if let Some(exp) = &exp_st.expression {
+                let fun_exp = (*exp).downcast_ref::<FunctionLiteral>().unwrap();
+                if fun_exp.parameters.len() != expected.len() {
+                    panic!(
+                        "fun_exp.parameters does not contain {} parameters. got={}",
+                        expected.len(),
+                        fun_exp.parameters.len()
+                    );
+                }
+                for (i, param) in fun_exp.parameters.iter().enumerate() {
+                    test_literal_expression(param, &expected[i]);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_operator_precedence_parsing() {
         let tests = vec![
             ("-a * b", "((-a) * b)"),
@@ -811,6 +947,8 @@ mod tests {
         if let Some(v) = expected.downcast_ref::<i64>() {
             test_integer_literal(exp, *v);
         } else if let Some(v) = expected.downcast_ref::<String>() {
+            test_identifier(exp, v);
+        } else if let Some(v) = expected.downcast_ref::<&str>() {
             test_identifier(exp, v);
         } else if let Some(v) = expected.downcast_ref::<bool>() {
             test_boolean_literal(exp, *v);
