@@ -3,9 +3,9 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean, Expression, ExpressionStatement, FunctionLiteral, Identifier,
-        IfExpression, InfixExpression, IntegerLiteral, LetStatement, PrefixExpression, Program,
-        ReturnStatement, Statement,
+        BlockStatement, Boolean, CallExpression, Expression, ExpressionStatement, FunctionLiteral,
+        Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement, PrefixExpression,
+        Program, ReturnStatement, Statement,
     },
     lexer::Lexer,
     token::{
@@ -41,6 +41,7 @@ static PRECEDENCES: Lazy<HashMap<TokenType, Precedence>> = Lazy::new(|| {
     m.insert(MINUS, Precedence::SUM);
     m.insert(SLASH, Precedence::PRODUCT);
     m.insert(ASTERISK, Precedence::PRODUCT);
+    m.insert(LPAREN, Precedence::CALL);
     m
 });
 
@@ -85,6 +86,7 @@ impl<'a> Parser<'a> {
         parser.register_infix(NOT_EQ, Parser::parse_infix_expression);
         parser.register_infix(LT, Parser::parse_infix_expression);
         parser.register_infix(GT, Parser::parse_infix_expression);
+        parser.register_infix(LPAREN, Parser::parse_call_expression);
         parser
     }
 
@@ -371,6 +373,38 @@ impl<'a> Parser<'a> {
         Some(identifiers)
     }
 
+    fn parse_call_expression(
+        parser: &mut Parser,
+        left: Box<dyn Expression>,
+    ) -> Option<Box<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+        let arguments = parser.parse_call_arguments().unwrap();
+        Some(Box::new(CallExpression {
+            token,
+            function: left,
+            arguments,
+        }))
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Box<dyn Expression>>> {
+        let mut args = Vec::new();
+        if self.peek_token_is(RPAREN) {
+            self.next_token();
+            return Some(args);
+        }
+        self.next_token();
+        args.push(self.parse_expression(Precedence::LOWEST)?);
+        while self.peek_token_is(COMMA) {
+            self.next_token();
+            self.next_token();
+            args.push(self.parse_expression(Precedence::LOWEST)?);
+        }
+        if !self.expect_peek(RPAREN) {
+            return None;
+        }
+        Some(args)
+    }
+
     fn parse_block_statement(&mut self) -> Option<Box<BlockStatement>> {
         let token = Rc::clone(&self.cur_token);
         let mut statements: Vec<Box<dyn Statement>> = vec![];
@@ -449,8 +483,9 @@ mod tests {
 
     use crate::{
         ast::{
-            Boolean, Expression, ExpressionStatement, FunctionLiteral, Identifier, IfExpression,
-            InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression, ReturnStatement,
+            Boolean, CallExpression, Expression, ExpressionStatement, FunctionLiteral, Identifier,
+            IfExpression, InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression,
+            ReturnStatement,
         },
         lexer::Lexer,
     };
@@ -849,6 +884,43 @@ mod tests {
     }
 
     #[test]
+    fn test_call_expression_parsing() {
+        let input = "add(1, 2 * 3, 4 + 5)";
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+        let program = program.unwrap();
+        let statement_len = program.statements.len();
+        if statement_len != 1 {
+            panic!(
+                "program.statements does not contain 1 statements. got={}",
+                statement_len
+            );
+        }
+        let st = &program.statements[0];
+        let exp_st = (*st).downcast_ref::<ExpressionStatement>().unwrap();
+        if let Some(exp) = &exp_st.expression {
+            let call_exp = (*exp).downcast_ref::<CallExpression>().unwrap();
+            test_identifier(call_exp.function.as_ref(), "add");
+
+            let arg_len = call_exp.arguments.len();
+            if arg_len != 3 {
+                panic!(
+                    "call_exp.arguments does not contain 3 arguments. got={}",
+                    arg_len
+                );
+            }
+            test_literal_expression(call_exp.arguments[0].as_ref(), &1_i64);
+            test_infix_expression(call_exp.arguments[1].as_ref(), &2_i64, "*", &3_i64);
+            test_infix_expression(call_exp.arguments[2].as_ref(), &4_i64, "+", &5_i64);
+        }
+    }
+
+    #[test]
     fn test_function_parameter_parsing() {
         let input: Vec<(&str, Vec<&str>)> = vec![
             ("fn() {}", vec![]),
@@ -917,6 +989,15 @@ mod tests {
             ("2 / (5 + 5)", "(2 / (5 + 5))"),
             ("-(5 + 5)", "(-(5 + 5))"),
             ("!(true == true)", "(!(true == true))"),
+            ("a + add(b * c) + d", "((a + add((b * c))) + d)"),
+            (
+                "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+                "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+            ),
+            (
+                "add(a + b + c * d / f + g)",
+                "add((((a + b) + ((c * d) / f)) + g))",
+            ),
         ];
         for (input, expected) in tests {
             let mut l = Lexer::new(input);

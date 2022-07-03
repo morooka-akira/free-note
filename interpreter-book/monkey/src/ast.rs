@@ -179,6 +179,38 @@ impl Expression for IfExpression {
         true
     }
 }
+/* ----------------------------------------------- */
+pub struct CallExpression {
+    pub token: Rc<Token>,
+    pub function: Box<dyn Expression>,
+    pub arguments: Vec<Box<dyn Expression>>,
+}
+
+impl Node for CallExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push_str(self.function.string().as_str());
+        buf.push('(');
+        for arg in &self.arguments {
+            buf.push_str(arg.string().as_str());
+            buf.push_str(", ");
+        }
+        buf.pop();
+        buf.pop();
+        buf.push(')');
+        buf
+    }
+}
+
+impl Expression for CallExpression {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
 
 /* ----------------------------------------------- */
 pub struct FunctionLiteral {
