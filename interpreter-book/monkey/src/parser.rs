@@ -133,15 +133,14 @@ impl<'a> Parser<'a> {
         if !self.expect_peek(ASSIGN) {
             return None;
         }
-        // TODO: とりあえずセミコロンまで値を読み飛ばす
-        while !self.cur_token_is(SEMICOLON) {
+        self.next_token();
+
+        let value = self.parse_expression(Precedence::LOWEST);
+
+        if self.peek_token_is(SEMICOLON) {
             self.next_token();
         }
-        Some(Box::new(LetStatement {
-            token,
-            name,
-            value: None,
-        }))
+        Some(Box::new(LetStatement { token, name, value }))
     }
 
     fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
@@ -149,14 +148,15 @@ impl<'a> Parser<'a> {
 
         self.next_token();
 
-        // TODO: とりあえずセミコロンまで値を読み飛ばす
-        while !self.cur_token_is(SEMICOLON) {
+        let value = self.parse_expression(Precedence::LOWEST);
+
+        if self.peek_token_is(SEMICOLON) {
             self.next_token();
         }
 
         Some(Box::new(ReturnStatement {
             token,
-            return_value: None,
+            return_value: value,
         }))
     }
 
@@ -492,77 +492,64 @@ mod tests {
 
     #[test]
     fn test_let_statement() {
-        let input = r#"
-            let x = 5;
-            let y = 10;
-            let foobar = 838383;
-        "#;
+        let input: Vec<(&str, &str, &dyn Any)> = vec![
+            ("let x = 5;", "x", &5),
+            ("let y = true;", "y", &true),
+            ("let foobar = y;", "foobar", &"y"),
+        ];
 
-        let mut l = Lexer::new(input);
-        let mut p = super::Parser::new(&mut l);
+        for (input, expected_ident, expected_value) in input {
+            let mut l = Lexer::new(input);
+            let mut parser = super::Parser::new(&mut l);
+            let program = parser.parse_program();
+            let program = program.unwrap();
 
-        let program = p.parse_program();
-        if program.is_err() {
-            panic!("parse_program() returned an error");
-        }
-        check_parser_errors(&p);
-        let program = program.unwrap();
-        let statement_len = program.statements.len();
-        if statement_len != 3 {
-            panic!(
-                "program.statements does not contain 3 statements. got={}",
-                statement_len
-            );
-        }
-        let expected_identifier = vec!["x", "y", "foobar"];
-        for (i, expected) in expected_identifier.iter().enumerate().take(statement_len) {
-            let st = &program.statements[i];
+            let st = &program.statements[0];
             let let_st = (*st).downcast_ref::<LetStatement>().unwrap();
-            // TODO: 値のテストは後で書く
             assert_eq!(
-                let_st.name.value,
-                expected.to_string(),
+                let_st.name.value, expected_ident,
                 "let_st.name.value not correct"
             );
             assert_eq!(
-                let_st.name.token_literal(),
-                expected.to_string(),
+                &let_st.name.token_literal(),
+                expected_ident,
                 "let_st.name.token_literal not correct"
             );
+            let val = let_st.value.as_ref().unwrap();
+            test_literal_expression(val.as_ref(), expected_value);
         }
     }
 
     #[test]
     fn test_return_statement() {
-        let input = r#"
-            return = 5;
-            return 10;
-            return = 993322;
-        "#;
+        let input: Vec<(&str, &dyn Any)> = vec![
+            ("return 5", &5),
+            ("return 10", &10),
+            ("return 993322", &993322),
+        ];
 
-        let mut l = Lexer::new(input);
-        let mut p = super::Parser::new(&mut l);
+        for (input, expected_value) in input {
+            let mut l = Lexer::new(input);
+            let mut p = super::Parser::new(&mut l);
 
-        let program = p.parse_program();
-        if program.is_err() {
-            panic!("parse_program() returned an error");
-        }
-        check_parser_errors(&p);
-        let program = program.unwrap();
-        let statement_len = program.statements.len();
-        if statement_len != 3 {
-            panic!(
-                "program.statements does not contain 3 statements. got={}",
-                statement_len
-            );
-        }
-        for st in program.statements.iter() {
+            let program = p.parse_program();
+            if program.is_err() {
+                panic!("parse_program() returned an error");
+            }
+            check_parser_errors(&p);
+            let program = program.unwrap();
+
+            let st = &program.statements[0];
             let return_st = (*st).downcast_ref::<ReturnStatement>().unwrap();
+
             assert_eq!(
                 return_st.token_literal(),
                 "return",
                 "token_literal not correct"
             );
+
+            let val = return_st.return_value.as_ref().unwrap();
+            test_literal_expression(val.as_ref(), expected_value);
         }
     }
 
@@ -1027,6 +1014,8 @@ mod tests {
     fn test_literal_expression(exp: &dyn Expression, expected: &dyn Any) {
         if let Some(v) = expected.downcast_ref::<i64>() {
             test_integer_literal(exp, *v);
+        } else if let Some(v) = expected.downcast_ref::<i32>() {
+            test_integer_literal(exp, *v as i64);
         } else if let Some(v) = expected.downcast_ref::<String>() {
             test_identifier(exp, v);
         } else if let Some(v) = expected.downcast_ref::<&str>() {
