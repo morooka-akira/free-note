@@ -1,6 +1,21 @@
 use std::io::{self, Write};
 
-use crate::{lexer::Lexer, token::EOF};
+use crate::{ast::Node, lexer::Lexer, parser::Parser};
+
+const MONKEY_FACE: &str = r#"
+            __,__
+   .--.  .-"     "-.  .--.
+  / .. \/  .-. .-.  \/ .. \
+ | |  '|  /   Y   \  |'  | |
+ | \   \  \ 0 | 0 /  /   / |
+  \ '- ,\.-""""""""-./, -' /
+   `'-' /_   ^ ^   _\ '-'`
+       |  \._   _./  |
+        \   \ '~' /   /
+        | \_  `-`  _/ |
+        \.' `-._,-' .'/
+        / `-._,-'_,-' \
+"#;
 
 pub fn start() {
     loop {
@@ -12,13 +27,28 @@ pub fn start() {
             .expect("Failed to read line.");
 
         let mut l = Lexer::new(buf.as_str());
+        let mut p = Parser::new(&mut l);
+        let program = p.parse_program();
 
-        loop {
-            let tok = l.next_token();
-            match tok.token_type {
-                EOF => break,
-                _ => println!("{:?}", tok),
-            }
+        if !p.errors.is_empty() {
+            print_parser_errors(&p.errors);
+            continue;
         }
+
+        if let Ok(program) = program {
+            println!("{:?}", program.string());
+        } else {
+            println!("Program is not valid.");
+        }
+    }
+}
+
+fn print_parser_errors(errors: &Vec<String>) {
+    println!("{}", MONKEY_FACE);
+    println!("Woops! We ran int some monkey business here!");
+    println!(" parser errors");
+
+    for error in errors {
+        println!("\t{}", error);
     }
 }

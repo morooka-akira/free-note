@@ -45,19 +45,20 @@ static PRECEDENCES: Lazy<HashMap<TokenType, Precedence>> = Lazy::new(|| {
     m
 });
 
-struct Parser<'a> {
+pub struct Parser<'a> {
     lexer: &'a mut Lexer<'a>,
 
     cur_token: Rc<Token>,
     peek_token: Rc<Token>,
 
-    errors: Vec<String>,
+    pub errors: Vec<String>,
 
     prefix_parse_fns: HashMap<TokenType, PrefixParseFn>,
     infix_parse_fns: HashMap<TokenType, InfixParseFn>,
 }
+
 impl<'a> Parser<'a> {
-    fn new(lexer: &'a mut Lexer<'a>) -> Parser<'a> {
+    pub fn new(lexer: &'a mut Lexer<'a>) -> Parser<'a> {
         let cur_token = Rc::new(lexer.next_token());
         let peek_token = Rc::new(lexer.next_token());
         let mut parser = Parser {
@@ -95,7 +96,7 @@ impl<'a> Parser<'a> {
         self.peek_token = Rc::new(self.lexer.next_token());
     }
 
-    fn parse_program(&mut self) -> Result<Program, String> {
+    pub fn parse_program(&mut self) -> Result<Program, String> {
         let mut program = Program::new();
 
         while !self.cur_token_is(EOF) {
@@ -110,7 +111,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
-        println!("{}", self.cur_token.token_type);
         match self.cur_token.token_type {
             LET => self.parse_let_statement(),
             RETURN => self.parse_return_statement(),
