@@ -1,6 +1,6 @@
 use crate::{
-    ast::{ExpressionStatement, IntegerLiteral, Node, Program, Statement},
-    object::{Integer, Object},
+    ast::{Boolean as BooleanAst, ExpressionStatement, IntegerLiteral, Node, Program, Statement},
+    object::{Integer, Object, FALSE, TRUE},
 };
 
 pub fn eval(node: &dyn Node) -> Box<dyn Object> {
@@ -16,6 +16,9 @@ pub fn eval(node: &dyn Node) -> Box<dyn Object> {
             value: integer_literal.value,
         });
     }
+    if let Some(boolean_literal) = node.downcast_ref::<BooleanAst>() {
+        return native_bool_to_boolean_object(boolean_literal.value);
+    }
     panic!("Unknown node type:");
 }
 
@@ -27,9 +30,14 @@ fn eval_statement(statements: &Vec<Box<dyn Statement>>) -> Box<dyn Object> {
     result.unwrap()
 }
 
+fn native_bool_to_boolean_object(input: bool) -> Box<dyn Object> {
+    Box::new(if input { TRUE } else { FALSE })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{lexer::Lexer, object::Boolean, parser::Parser};
 
     #[test]
     fn test_evaluator_integer_expression() {
@@ -37,6 +45,15 @@ mod tests {
         for (input, expected) in input {
             let evaluated = test_eval(input);
             test_integer_object(evaluated.as_ref(), expected);
+        }
+    }
+
+    #[test]
+    fn test_eval_boolean_expression() {
+        let input = vec![("true", true), ("false", false)];
+        for (input, expected) in input {
+            let evaluated = test_eval(input);
+            test_boolean_object(evaluated.as_ref(), expected);
         }
     }
 
@@ -52,5 +69,10 @@ mod tests {
     fn test_integer_object(obj: &dyn Object, expected: i64) {
         let integer = obj.downcast_ref::<Integer>().unwrap();
         assert_eq!(integer.value, expected);
+    }
+
+    fn test_boolean_object(obj: &dyn Object, expected: bool) {
+        let bool_val = obj.downcast_ref::<Boolean>().unwrap();
+        assert_eq!(bool_val.value, expected);
     }
 }

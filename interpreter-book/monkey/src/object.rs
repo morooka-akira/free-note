@@ -43,6 +43,9 @@ impl Object for Boolean {
     }
 }
 
+pub const TRUE: Boolean = Boolean { value: true };
+pub const FALSE: Boolean = Boolean { value: false };
+
 // ------------------------------
 
 pub struct Null {}
