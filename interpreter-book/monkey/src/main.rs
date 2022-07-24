@@ -1,5 +1,7 @@
+#![feature(trait_upcasting)]
 use users::{get_current_uid, get_user_by_uid};
 mod ast;
+mod evaluator;
 mod lexer;
 mod object;
 mod parser;

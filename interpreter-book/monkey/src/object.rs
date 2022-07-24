@@ -2,12 +2,16 @@ use downcast_rs::{impl_downcast, Downcast};
 
 pub type ObjectType = String;
 pub const INTEGER_OBJ: &str = "INTEGER";
+pub const BOOLEAN_OBJ: &str = "BOOLEAN";
+pub const NULL_OBJ: &str = "NULL";
 
 pub trait Object: Downcast {
     fn obj_type(&self) -> ObjectType;
     fn inspect(&self) -> String;
 }
 impl_downcast!(Object);
+
+// ------------------------------
 
 pub struct Integer {
     pub value: i64,
@@ -20,5 +24,35 @@ impl Object for Integer {
 
     fn inspect(&self) -> String {
         format!("{}", self.value)
+    }
+}
+
+// ------------------------------
+
+pub struct Boolean {
+    pub value: bool,
+}
+
+impl Object for Boolean {
+    fn obj_type(&self) -> ObjectType {
+        BOOLEAN_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        format!("{}", self.value)
+    }
+}
+
+// ------------------------------
+
+pub struct Null {}
+
+impl Object for Null {
+    fn obj_type(&self) -> ObjectType {
+        NULL_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        "null".to_string()
     }
 }
