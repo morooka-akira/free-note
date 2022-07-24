@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::{ast::Node, lexer::Lexer, parser::Parser};
+use crate::{evaluator, lexer::Lexer, parser::Parser};
 
 const MONKEY_FACE: &str = r#"
             __,__
@@ -36,7 +36,8 @@ pub fn start() {
         }
 
         if let Ok(program) = program {
-            println!("{:?}", program.string());
+            let evaluated = evaluator::eval(&program);
+            println!("{}", evaluated.inspect());
         } else {
             println!("Program is not valid.");
         }
