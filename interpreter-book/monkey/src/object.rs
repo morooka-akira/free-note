@@ -59,3 +59,5 @@ impl Object for Null {
         "null".to_string()
     }
 }
+
+pub const NULL: Null = Null {};
