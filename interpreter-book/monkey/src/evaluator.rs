@@ -1,9 +1,9 @@
 use crate::{
     ast::{
-        Boolean as BooleanAst, ExpressionStatement, IntegerLiteral, Node, PrefixExpression,
-        Program, Statement,
+        Boolean as BooleanAst, Expression, ExpressionStatement, InfixExpression, IntegerLiteral,
+        Node, PrefixExpression, Program, Statement,
     },
-    object::{Integer, Object, BOOLEAN_OBJ, FALSE, NULL, NULL_OBJ, TRUE},
+    object::{Boolean, Integer, Object, BOOLEAN_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, TRUE},
 };
 
 pub fn eval(node: &dyn Node) -> Box<dyn Object> {
@@ -25,6 +25,13 @@ pub fn eval(node: &dyn Node) -> Box<dyn Object> {
     }
     if let Some(boolean_literal) = node.downcast_ref::<BooleanAst>() {
         return native_bool_to_boolean_object(boolean_literal.value);
+    }
+    if let Some(infix_expression) = node.downcast_ref::<InfixExpression>() {
+        return eval_infix_expression(
+            infix_expression.operator.as_ref(),
+            eval(infix_expression.left.as_ref()).as_ref(),
+            eval(infix_expression.right.as_ref()).as_ref(),
+        );
     }
     panic!("Unknown node type:");
 }
@@ -64,6 +71,50 @@ fn eval_minus_prefix_operator_expression(right: &dyn Object) -> Box<dyn Object> 
     }
 }
 
+fn eval_infix_expression(operator: &str, left: &dyn Object, right: &dyn Object) -> Box<dyn Object> {
+    if left.obj_type() == INTEGER_OBJ && right.obj_type() == INTEGER_OBJ {
+        eval_integer_infix_expression(operator, left, right)
+    } else if operator == "==" {
+        let left_bool = left.downcast_ref::<Boolean>().unwrap().value;
+        let right_bool = right.downcast_ref::<Boolean>().unwrap().value;
+        native_bool_to_boolean_object(left_bool == right_bool)
+    } else if operator == "!=" {
+        let left_bool = left.downcast_ref::<Boolean>().unwrap().value;
+        let right_bool = right.downcast_ref::<Boolean>().unwrap().value;
+        native_bool_to_boolean_object(left_bool != right_bool)
+    } else {
+        Box::new(NULL)
+    }
+}
+
+fn eval_integer_infix_expression(
+    operator: &str,
+    left: &dyn Object,
+    right: &dyn Object,
+) -> Box<dyn Object> {
+    let left_value = left.downcast_ref::<Integer>().unwrap();
+    let right_value = right.downcast_ref::<Integer>().unwrap();
+    match operator {
+        "+" => Box::new(Integer {
+            value: left_value.value + right_value.value,
+        }),
+        "-" => Box::new(Integer {
+            value: left_value.value - right_value.value,
+        }),
+        "*" => Box::new(Integer {
+            value: left_value.value * right_value.value,
+        }),
+        "/" => Box::new(Integer {
+            value: left_value.value / right_value.value,
+        }),
+        "<" => native_bool_to_boolean_object(left_value.value < right_value.value),
+        ">" => native_bool_to_boolean_object(left_value.value > right_value.value),
+        "==" => native_bool_to_boolean_object(left_value.value == right_value.value),
+        "!=" => native_bool_to_boolean_object(left_value.value != right_value.value),
+        _ => Box::new(NULL),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,7 +122,23 @@ mod tests {
 
     #[test]
     fn test_eval_integer_expression() {
-        let input = vec![("5", 5), ("10", 10), ("-5", -5), ("-10", -10)];
+        let input = vec![
+            ("5", 5),
+            ("10", 10),
+            ("-5", -5),
+            ("-10", -10),
+            ("5 + 5 + 5 + 5 - 10", 10),
+            ("2 * 2 * 2 * 2 * 2", 32),
+            ("-50 + 100 + -50", 0),
+            ("5 * 2 + 10", 20),
+            ("5 + 2 * 10", 25),
+            ("20 + 2 * -10", 0),
+            ("50 / 2 * 2 + 10", 60),
+            ("2 * (5 + 10)", 30),
+            ("3 * 3 * 3 + 10", 37),
+            ("3 * (3 * 3) + 10", 37),
+            ("(5 + 10 * 2 + 15 / 3) * 2 + -10", 50),
+        ];
         for (input, expected) in input {
             let evaluated = test_eval(input);
             test_integer_object(evaluated.as_ref(), expected);
@@ -96,6 +163,25 @@ mod tests {
             ("!!true", true),
             ("!!false", false),
             ("!!5", true),
+            ("true", true),
+            ("false", false),
+            ("1 < 2", true),
+            ("1 > 2", false),
+            ("1 < 1", false),
+            ("1 > 1", false),
+            ("1 == 1", true),
+            ("1 != 1", false),
+            ("1 == 2", false),
+            ("1 != 2", true),
+            ("true == true", true),
+            ("false == false", true),
+            ("true == false", false),
+            ("true != false", true),
+            ("false != true", true),
+            ("(1 < 2) == true", true),
+            ("(1 < 2) == false", false),
+            ("(1 > 2) == true", false),
+            ("(1 > 2) == false", true),
         ];
         for (input, expected) in input {
             let evaluated = test_eval(input);
@@ -108,7 +194,6 @@ mod tests {
         let mut p = Parser::new(&mut l);
         let program = p.parse_program();
         let program = program.expect("Program failed to parse");
-
         eval(&program)
     }
 
