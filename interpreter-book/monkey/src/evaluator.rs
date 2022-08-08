@@ -1,12 +1,15 @@
 use crate::{
     ast::{
-        Boolean as BooleanAst, Expression, ExpressionStatement, InfixExpression, IntegerLiteral,
-        Node, PrefixExpression, Program, Statement,
+        BlockStatement, Boolean as BooleanAst, ExpressionStatement, IfExpression, InfixExpression,
+        IntegerLiteral, Node, PrefixExpression, Program, Statement,
     },
     object::{Boolean, Integer, Object, BOOLEAN_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, TRUE},
 };
 
 pub fn eval(node: &dyn Node) -> Box<dyn Object> {
+    if let Some(program) = node.downcast_ref::<BlockStatement>() {
+        return eval_statement(&program.statements);
+    }
     if let Some(program) = node.downcast_ref::<Program>() {
         return eval_statement(&program.statements);
     }
@@ -32,6 +35,9 @@ pub fn eval(node: &dyn Node) -> Box<dyn Object> {
             eval(infix_expression.left.as_ref()).as_ref(),
             eval(infix_expression.right.as_ref()).as_ref(),
         );
+    }
+    if let Some(if_expression) = node.downcast_ref::<IfExpression>() {
+        return eval_if_expression(if_expression);
     }
     panic!("Unknown node type:");
 }
@@ -115,6 +121,28 @@ fn eval_integer_infix_expression(
     }
 }
 
+fn eval_if_expression(if_expression: &IfExpression) -> Box<dyn Object> {
+    let condition = eval(if_expression.condition.as_ref());
+
+    if is_truthy(condition.as_ref()) {
+        eval(if_expression.consequence.as_ref())
+    } else if let Some(block) = &if_expression.alternative {
+        eval(block.as_ref())
+    } else {
+        Box::new(NULL)
+    }
+}
+
+fn is_truthy(obj: &dyn Object) -> bool {
+    if obj.obj_type() == NULL_OBJ {
+        return false;
+    }
+    if obj.obj_type() == BOOLEAN_OBJ {
+        return obj.downcast_ref::<Boolean>().unwrap().value;
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,6 +217,26 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_if_else_expression() {
+        let int_test_input = vec![
+            ("if (true) { 10 }", 10),
+            ("if (1) { 10 }", 10),
+            ("if (1 < 2) { 10 }", 10),
+            ("if (1 > 2) { 10 } else { 20 }", 20),
+            ("if (1 < 2) { 10 } else { 20 }", 10),
+        ];
+        for (input, expected) in int_test_input {
+            let evaluated = test_eval(input);
+            test_integer_object(evaluated.as_ref(), expected);
+        }
+        let int_test_input = vec!["if (false) { 10 }", "if (1 > 2) { 10 }"];
+        for input in int_test_input {
+            let evaluated = test_eval(input);
+            test_null_object(evaluated.as_ref());
+        }
+    }
+
     fn test_eval(input: &str) -> Box<dyn Object> {
         let mut l = Lexer::new(input);
         let mut p = Parser::new(&mut l);
@@ -205,5 +253,9 @@ mod tests {
     fn test_boolean_object(obj: &dyn Object, expected: bool) {
         let bool_val = obj.downcast_ref::<Boolean>().unwrap();
         assert_eq!(bool_val.value, expected);
+    }
+
+    fn test_null_object(obj: &dyn Object) {
+        assert_eq!(obj.inspect(), NULL.inspect());
     }
 }
