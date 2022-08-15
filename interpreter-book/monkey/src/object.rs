@@ -1,9 +1,12 @@
+use std::rc::Rc;
+
 use downcast_rs::{impl_downcast, Downcast};
 
 pub type ObjectType = String;
 pub const INTEGER_OBJ: &str = "INTEGER";
 pub const BOOLEAN_OBJ: &str = "BOOLEAN";
 pub const NULL_OBJ: &str = "NULL";
+pub const RETURN_VALUE_OBJ: &str = "RETURN_VALUE";
 
 pub trait Object: Downcast {
     fn obj_type(&self) -> ObjectType;
@@ -61,3 +64,17 @@ impl Object for Null {
 }
 
 pub const NULL: Null = Null {};
+
+// ------------------------------
+pub struct ReturnValue {
+    pub value: Rc<dyn Object>,
+}
+
+impl Object for ReturnValue {
+    fn obj_type(&self) -> ObjectType {
+        RETURN_VALUE_OBJ.to_string()
+    }
+    fn inspect(&self) -> String {
+        self.value.inspect()
+    }
+}

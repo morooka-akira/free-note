@@ -1,24 +1,29 @@
+use std::rc::Rc;
+
 use crate::{
     ast::{
         BlockStatement, Boolean as BooleanAst, ExpressionStatement, IfExpression, InfixExpression,
-        IntegerLiteral, Node, PrefixExpression, Program, Statement,
+        IntegerLiteral, Node, PrefixExpression, Program, ReturnStatement, Statement,
     },
-    object::{Boolean, Integer, Object, BOOLEAN_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, TRUE},
+    object::{
+        Boolean, Integer, Object, ReturnValue, BOOLEAN_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ,
+        RETURN_VALUE_OBJ, TRUE,
+    },
 };
 
-pub fn eval(node: &dyn Node) -> Box<dyn Object> {
-    if let Some(program) = node.downcast_ref::<BlockStatement>() {
-        return eval_statement(&program.statements);
+pub fn eval(node: &dyn Node) -> Rc<dyn Object> {
+    if let Some(block) = node.downcast_ref::<BlockStatement>() {
+        return eval_block_statement(block);
     }
     if let Some(program) = node.downcast_ref::<Program>() {
-        return eval_statement(&program.statements);
+        return eval_program(program);
     }
     if let Some(exp_statement) = node.downcast_ref::<ExpressionStatement>() {
         let exp = exp_statement.expression.as_ref().unwrap().as_ref();
         return eval(exp);
     }
     if let Some(integer_literal) = node.downcast_ref::<IntegerLiteral>() {
-        return Box::new(Integer {
+        return Rc::new(Integer {
             value: integer_literal.value,
         });
     }
@@ -36,48 +41,69 @@ pub fn eval(node: &dyn Node) -> Box<dyn Object> {
             eval(infix_expression.right.as_ref()).as_ref(),
         );
     }
+    if let Some(return_statement) = node.downcast_ref::<ReturnStatement>() {
+        let return_val = return_statement.return_value.as_ref();
+        let value = eval(return_val.unwrap().as_ref());
+        return Rc::new(ReturnValue { value });
+    }
     if let Some(if_expression) = node.downcast_ref::<IfExpression>() {
         return eval_if_expression(if_expression);
     }
     panic!("Unknown node type:");
 }
 
-fn eval_statement(statements: &Vec<Box<dyn Statement>>) -> Box<dyn Object> {
+fn eval_program(program: &Program) -> Rc<dyn Object> {
     let mut result = None;
-    for statement in statements {
-        result = Some(eval(statement.as_ref()));
+    for statement in &program.statements {
+        let e = eval(statement.as_ref());
+        if let Some(return_value) = e.downcast_ref::<ReturnValue>() {
+            return return_value.value.clone();
+        }
+        result = Some(e);
     }
     result.unwrap()
 }
 
-fn native_bool_to_boolean_object(input: bool) -> Box<dyn Object> {
-    Box::new(if input { TRUE } else { FALSE })
+fn eval_block_statement(block: &BlockStatement) -> Rc<dyn Object> {
+    let mut result = None;
+    for statement in &block.statements {
+        let e = eval(statement.as_ref());
+        if e.as_ref().obj_type() == RETURN_VALUE_OBJ {
+            return e;
+        }
+        result = Some(e);
+    }
+    result.unwrap()
 }
 
-fn eval_prefix_expression(operator: &str, right: &dyn Object) -> Box<dyn Object> {
+fn native_bool_to_boolean_object(input: bool) -> Rc<dyn Object> {
+    Rc::new(if input { TRUE } else { FALSE })
+}
+
+fn eval_prefix_expression(operator: &str, right: &dyn Object) -> Rc<dyn Object> {
     match operator {
         "!" => eval_bang_operator_expression(right),
         "-" => eval_minus_prefix_operator_expression(right),
-        _ => Box::new(NULL),
+        _ => Rc::new(NULL),
     }
 }
 
-fn eval_bang_operator_expression(right: &dyn Object) -> Box<dyn Object> {
+fn eval_bang_operator_expression(right: &dyn Object) -> Rc<dyn Object> {
     match right.obj_type().as_str() {
-        NULL_OBJ => Box::new(TRUE),
+        NULL_OBJ => Rc::new(TRUE),
         BOOLEAN_OBJ => native_bool_to_boolean_object(!right.inspect().parse::<bool>().unwrap()),
-        _ => Box::new(FALSE),
+        _ => Rc::new(FALSE),
     }
 }
 
-fn eval_minus_prefix_operator_expression(right: &dyn Object) -> Box<dyn Object> {
+fn eval_minus_prefix_operator_expression(right: &dyn Object) -> Rc<dyn Object> {
     match right.downcast_ref::<Integer>() {
-        Some(int) => Box::new(Integer { value: -int.value }),
-        _ => Box::new(NULL),
+        Some(int) => Rc::new(Integer { value: -int.value }),
+        _ => Rc::new(NULL),
     }
 }
 
-fn eval_infix_expression(operator: &str, left: &dyn Object, right: &dyn Object) -> Box<dyn Object> {
+fn eval_infix_expression(operator: &str, left: &dyn Object, right: &dyn Object) -> Rc<dyn Object> {
     if left.obj_type() == INTEGER_OBJ && right.obj_type() == INTEGER_OBJ {
         eval_integer_infix_expression(operator, left, right)
     } else if operator == "==" {
@@ -89,7 +115,7 @@ fn eval_infix_expression(operator: &str, left: &dyn Object, right: &dyn Object) 
         let right_bool = right.downcast_ref::<Boolean>().unwrap().value;
         native_bool_to_boolean_object(left_bool != right_bool)
     } else {
-        Box::new(NULL)
+        Rc::new(NULL)
     }
 }
 
@@ -97,31 +123,31 @@ fn eval_integer_infix_expression(
     operator: &str,
     left: &dyn Object,
     right: &dyn Object,
-) -> Box<dyn Object> {
+) -> Rc<dyn Object> {
     let left_value = left.downcast_ref::<Integer>().unwrap();
     let right_value = right.downcast_ref::<Integer>().unwrap();
     match operator {
-        "+" => Box::new(Integer {
+        "+" => Rc::new(Integer {
             value: left_value.value + right_value.value,
         }),
-        "-" => Box::new(Integer {
+        "-" => Rc::new(Integer {
             value: left_value.value - right_value.value,
         }),
-        "*" => Box::new(Integer {
+        "*" => Rc::new(Integer {
             value: left_value.value * right_value.value,
         }),
-        "/" => Box::new(Integer {
+        "/" => Rc::new(Integer {
             value: left_value.value / right_value.value,
         }),
         "<" => native_bool_to_boolean_object(left_value.value < right_value.value),
         ">" => native_bool_to_boolean_object(left_value.value > right_value.value),
         "==" => native_bool_to_boolean_object(left_value.value == right_value.value),
         "!=" => native_bool_to_boolean_object(left_value.value != right_value.value),
-        _ => Box::new(NULL),
+        _ => Rc::new(NULL),
     }
 }
 
-fn eval_if_expression(if_expression: &IfExpression) -> Box<dyn Object> {
+fn eval_if_expression(if_expression: &IfExpression) -> Rc<dyn Object> {
     let condition = eval(if_expression.condition.as_ref());
 
     if is_truthy(condition.as_ref()) {
@@ -129,7 +155,7 @@ fn eval_if_expression(if_expression: &IfExpression) -> Box<dyn Object> {
     } else if let Some(block) = &if_expression.alternative {
         eval(block.as_ref())
     } else {
-        Box::new(NULL)
+        Rc::new(NULL)
     }
 }
 
@@ -237,7 +263,34 @@ mod tests {
         }
     }
 
-    fn test_eval(input: &str) -> Box<dyn Object> {
+    #[test]
+    fn test_return_statements() {
+        let input = vec![
+            ("return 10;", 10),
+            ("return 10; 9;", 10),
+            ("return 2 * 5; 9;", 10),
+            ("9; return 2 * 5; 9;", 10),
+            (
+                r#"
+            if (10 > 1) {
+                if (10 > 1) {
+                    return 10;
+                }
+
+                return 1;
+            }
+            "#,
+                10,
+            ),
+        ];
+
+        for (input, expected) in input {
+            let evaluated = test_eval(input);
+            test_integer_object(evaluated.as_ref(), expected);
+        }
+    }
+
+    fn test_eval(input: &str) -> Rc<dyn Object> {
         let mut l = Lexer::new(input);
         let mut p = Parser::new(&mut l);
         let program = p.parse_program();
