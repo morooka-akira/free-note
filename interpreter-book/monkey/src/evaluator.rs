@@ -3,11 +3,11 @@ use std::rc::Rc;
 use crate::{
     ast::{
         BlockStatement, Boolean as BooleanAst, ExpressionStatement, IfExpression, InfixExpression,
-        IntegerLiteral, Node, PrefixExpression, Program, ReturnStatement, Statement,
+        IntegerLiteral, Node, PrefixExpression, Program, ReturnStatement,
     },
     object::{
-        Boolean, Integer, Object, ReturnValue, BOOLEAN_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ,
-        RETURN_VALUE_OBJ, TRUE,
+        Boolean, Error, Integer, Object, ReturnValue, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ,
+        NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
     },
 };
 
@@ -29,33 +29,50 @@ pub fn eval(node: &dyn Node) -> Rc<dyn Object> {
     }
     if let Some(exp) = node.downcast_ref::<PrefixExpression>() {
         let right = eval(exp.right.as_ref());
+        if is_error(right.as_ref()) {
+            return right;
+        }
         return eval_prefix_expression(&exp.operator, right.as_ref());
     }
     if let Some(boolean_literal) = node.downcast_ref::<BooleanAst>() {
         return native_bool_to_boolean_object(boolean_literal.value);
     }
     if let Some(infix_expression) = node.downcast_ref::<InfixExpression>() {
+        let left = eval(infix_expression.left.as_ref());
+        if is_error(left.as_ref()) {
+            return left;
+        }
+        let right = eval(infix_expression.right.as_ref());
+        if is_error(right.as_ref()) {
+            return right;
+        }
         return eval_infix_expression(
             infix_expression.operator.as_ref(),
-            eval(infix_expression.left.as_ref()).as_ref(),
-            eval(infix_expression.right.as_ref()).as_ref(),
+            left.as_ref(),
+            right.as_ref(),
         );
     }
     if let Some(return_statement) = node.downcast_ref::<ReturnStatement>() {
         let return_val = return_statement.return_value.as_ref();
         let value = eval(return_val.unwrap().as_ref());
+        if is_error(value.as_ref()) {
+            return value;
+        }
         return Rc::new(ReturnValue { value });
     }
     if let Some(if_expression) = node.downcast_ref::<IfExpression>() {
         return eval_if_expression(if_expression);
     }
-    panic!("Unknown node type:");
+    new_error("eval: Unknown node type")
 }
 
 fn eval_program(program: &Program) -> Rc<dyn Object> {
     let mut result = None;
     for statement in &program.statements {
         let e = eval(statement.as_ref());
+        if is_error(e.as_ref()) {
+            return e;
+        }
         if let Some(return_value) = e.downcast_ref::<ReturnValue>() {
             return return_value.value.clone();
         }
@@ -68,6 +85,9 @@ fn eval_block_statement(block: &BlockStatement) -> Rc<dyn Object> {
     let mut result = None;
     for statement in &block.statements {
         let e = eval(statement.as_ref());
+        if is_error(e.as_ref()) {
+            return e;
+        }
         if e.as_ref().obj_type() == RETURN_VALUE_OBJ {
             return e;
         }
@@ -99,7 +119,7 @@ fn eval_bang_operator_expression(right: &dyn Object) -> Rc<dyn Object> {
 fn eval_minus_prefix_operator_expression(right: &dyn Object) -> Rc<dyn Object> {
     match right.downcast_ref::<Integer>() {
         Some(int) => Rc::new(Integer { value: -int.value }),
-        _ => Rc::new(NULL),
+        _ => new_error(&format!("unknown operator: -{}", right.obj_type())),
     }
 }
 
@@ -114,8 +134,18 @@ fn eval_infix_expression(operator: &str, left: &dyn Object, right: &dyn Object) 
         let left_bool = left.downcast_ref::<Boolean>().unwrap().value;
         let right_bool = right.downcast_ref::<Boolean>().unwrap().value;
         native_bool_to_boolean_object(left_bool != right_bool)
+    } else if left.obj_type() != right.obj_type() {
+        new_error(&format!(
+            "type mismatch: {} + {}",
+            left.obj_type(),
+            right.obj_type()
+        ))
     } else {
-        Rc::new(NULL)
+        new_error(&format!(
+            "unknown operator: {} + {}",
+            left.obj_type(),
+            right.obj_type()
+        ))
     }
 }
 
@@ -143,13 +173,15 @@ fn eval_integer_infix_expression(
         ">" => native_bool_to_boolean_object(left_value.value > right_value.value),
         "==" => native_bool_to_boolean_object(left_value.value == right_value.value),
         "!=" => native_bool_to_boolean_object(left_value.value != right_value.value),
-        _ => Rc::new(NULL),
+        _ => new_error("unknown operator"),
     }
 }
 
 fn eval_if_expression(if_expression: &IfExpression) -> Rc<dyn Object> {
     let condition = eval(if_expression.condition.as_ref());
-
+    if is_error(condition.as_ref()) {
+        return condition;
+    }
     if is_truthy(condition.as_ref()) {
         eval(if_expression.consequence.as_ref())
     } else if let Some(block) = &if_expression.alternative {
@@ -169,10 +201,24 @@ fn is_truthy(obj: &dyn Object) -> bool {
     true
 }
 
+fn new_error(message: &str) -> Rc<dyn Object> {
+    Rc::new(Error {
+        message: String::from(message),
+    })
+}
+
+fn is_error(obj: &dyn Object) -> bool {
+    obj.obj_type() == ERROR_OBJ
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{lexer::Lexer, object::Boolean, parser::Parser};
+    use crate::{
+        lexer::Lexer,
+        object::{Boolean, Error},
+        parser::Parser,
+    };
 
     #[test]
     fn test_eval_integer_expression() {
@@ -287,6 +333,48 @@ mod tests {
         for (input, expected) in input {
             let evaluated = test_eval(input);
             test_integer_object(evaluated.as_ref(), expected);
+        }
+    }
+
+    #[test]
+    fn test_error_handling() {
+        let input = vec![
+            ("5 + true;", "type mismatch: INTEGER + BOOLEAN"),
+            ("5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"),
+            ("-true", "unknown operator: -BOOLEAN"),
+            ("true + false", "unknown operator: BOOLEAN + BOOLEAN"),
+            ("5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"),
+            (
+                "if (10 > 1) { true + false; }",
+                "unknown operator: BOOLEAN + BOOLEAN",
+            ),
+            (
+                "if (10 > 1) { if (10 > 1) { return true + false; } return 1; }",
+                "unknown operator: BOOLEAN + BOOLEAN",
+            ),
+            (
+                r#"
+                if (10 > 1) {
+                  if (10 > 1) {
+                    return true + false;
+                  }
+                return 1;
+                }
+                "#,
+                "unknown operator: BOOLEAN + BOOLEAN",
+            ),
+        ];
+        for (input, expected) in input {
+            let evaluated = test_eval(input);
+            if let Some(error) = evaluated.downcast_ref::<Error>() {
+                assert_eq!(error.message, expected);
+            } else {
+                panic!(
+                    "no error object returned {}: {}",
+                    evaluated.obj_type(),
+                    evaluated.inspect()
+                );
+            }
         }
     }
 
