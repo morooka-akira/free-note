@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     ast::{
         BlockStatement, Boolean as BooleanAst, ExpressionStatement, IfExpression, InfixExpression,
-        IntegerLiteral, Node, PrefixExpression, Program, ReturnStatement,
+        IntegerLiteral, LetStatement, Node, PrefixExpression, Program, ReturnStatement,
     },
     object::{
         Boolean, Error, Integer, Object, ReturnValue, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ,
@@ -63,6 +63,14 @@ pub fn eval(node: &dyn Node) -> Rc<dyn Object> {
     if let Some(if_expression) = node.downcast_ref::<IfExpression>() {
         return eval_if_expression(if_expression);
     }
+    if let Some(let_statement) = node.downcast_ref::<LetStatement>() {
+        let let_val = let_statement.value.as_ref();
+        let value = eval(let_val.unwrap().as_ref());
+        if is_error(value.as_ref()) {
+            return value;
+        }
+    }
+
     new_error("eval: Unknown node type")
 }
 
@@ -363,6 +371,7 @@ mod tests {
                 "#,
                 "unknown operator: BOOLEAN + BOOLEAN",
             ),
+            ("foobar", "identifier not found: foobar"),
         ];
         for (input, expected) in input {
             let evaluated = test_eval(input);
@@ -375,6 +384,21 @@ mod tests {
                     evaluated.inspect()
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_let_statement() {
+        let input = vec![
+            ("let a = 5; a;", 5),
+            ("let a = 5 * 5; a;", 25),
+            ("let a = 5; let b = a; b;", 5),
+            ("let a = 5; let b = a; let c = a + b + 5; c;", 15),
+        ];
+
+        for (input, expected) in input {
+            let evaluated = test_eval(input);
+            test_integer_object(evaluated.as_ref(), expected);
         }
     }
 

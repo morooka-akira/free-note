@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 
@@ -92,5 +92,30 @@ impl Object for Error {
 
     fn inspect(&self) -> String {
         "ERROR: ".to_string() + &self.message
+    }
+}
+
+// ------------------------------
+pub struct Environment {
+    store: HashMap<String, Box<dyn Object>>,
+}
+
+impl Environment {
+    pub fn new() -> Environment {
+        Environment {
+            store: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, name: &str) -> Option<&dyn Object> {
+        if let Some(obj) = self.store.get(name) {
+            Some(obj.as_ref())
+        } else {
+            None
+        }
+    }
+
+    pub fn set(&mut self, name: &str, val: Box<dyn Object>) -> Option<Box<dyn Object>> {
+        self.store.insert(name.to_string(), val)
     }
 }
