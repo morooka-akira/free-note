@@ -1,34 +1,38 @@
-use std::rc::Rc;
+use std::{fmt::format, process::id, rc::Rc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean as BooleanAst, ExpressionStatement, IfExpression, InfixExpression,
-        IntegerLiteral, LetStatement, Node, PrefixExpression, Program, ReturnStatement,
+        BlockStatement, Boolean as BooleanAst, ExpressionStatement, Identifier, IfExpression,
+        InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression, Program,
+        ReturnStatement,
     },
     object::{
-        Boolean, Error, Integer, Object, ReturnValue, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ,
-        NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
+        Boolean, Environment, Error, Integer, Object, ReturnValue, BOOLEAN_OBJ, ERROR_OBJ, FALSE,
+        INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
     },
 };
 
-pub fn eval(node: &dyn Node) -> Rc<dyn Object> {
+pub fn eval(node: &dyn Node, env: &mut Environment) -> Rc<dyn Object> {
     if let Some(block) = node.downcast_ref::<BlockStatement>() {
-        return eval_block_statement(block);
+        return eval_block_statement(block, env);
     }
     if let Some(program) = node.downcast_ref::<Program>() {
-        return eval_program(program);
+        return eval_program(program, env);
     }
     if let Some(exp_statement) = node.downcast_ref::<ExpressionStatement>() {
         let exp = exp_statement.expression.as_ref().unwrap().as_ref();
-        return eval(exp);
+        return eval(exp, env);
     }
     if let Some(integer_literal) = node.downcast_ref::<IntegerLiteral>() {
         return Rc::new(Integer {
             value: integer_literal.value,
         });
     }
+    if let Some(integer_literal) = node.downcast_ref::<Identifier>() {
+        return eval_identifier(integer_literal, env);
+    }
     if let Some(exp) = node.downcast_ref::<PrefixExpression>() {
-        let right = eval(exp.right.as_ref());
+        let right = eval(exp.right.as_ref(), env);
         if is_error(right.as_ref()) {
             return right;
         }
@@ -38,11 +42,11 @@ pub fn eval(node: &dyn Node) -> Rc<dyn Object> {
         return native_bool_to_boolean_object(boolean_literal.value);
     }
     if let Some(infix_expression) = node.downcast_ref::<InfixExpression>() {
-        let left = eval(infix_expression.left.as_ref());
+        let left = eval(infix_expression.left.as_ref(), env);
         if is_error(left.as_ref()) {
             return left;
         }
-        let right = eval(infix_expression.right.as_ref());
+        let right = eval(infix_expression.right.as_ref(), env);
         if is_error(right.as_ref()) {
             return right;
         }
@@ -54,30 +58,32 @@ pub fn eval(node: &dyn Node) -> Rc<dyn Object> {
     }
     if let Some(return_statement) = node.downcast_ref::<ReturnStatement>() {
         let return_val = return_statement.return_value.as_ref();
-        let value = eval(return_val.unwrap().as_ref());
+        let value = eval(return_val.unwrap().as_ref(), env);
         if is_error(value.as_ref()) {
             return value;
         }
         return Rc::new(ReturnValue { value });
     }
     if let Some(if_expression) = node.downcast_ref::<IfExpression>() {
-        return eval_if_expression(if_expression);
+        return eval_if_expression(if_expression, env);
     }
     if let Some(let_statement) = node.downcast_ref::<LetStatement>() {
         let let_val = let_statement.value.as_ref();
-        let value = eval(let_val.unwrap().as_ref());
+        let value = eval(let_val.unwrap().as_ref(), env);
         if is_error(value.as_ref()) {
             return value;
         }
+        env.set(&let_statement.name.value, Rc::clone(&value));
+        return value;
     }
 
-    new_error("eval: Unknown node type")
+    new_error(&format!("eval: Unknown node type {}", node.token_literal()))
 }
 
-fn eval_program(program: &Program) -> Rc<dyn Object> {
+fn eval_program(program: &Program, env: &mut Environment) -> Rc<dyn Object> {
     let mut result = None;
     for statement in &program.statements {
-        let e = eval(statement.as_ref());
+        let e = eval(statement.as_ref(), env);
         if is_error(e.as_ref()) {
             return e;
         }
@@ -89,10 +95,10 @@ fn eval_program(program: &Program) -> Rc<dyn Object> {
     result.unwrap()
 }
 
-fn eval_block_statement(block: &BlockStatement) -> Rc<dyn Object> {
+fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Rc<dyn Object> {
     let mut result = None;
     for statement in &block.statements {
-        let e = eval(statement.as_ref());
+        let e = eval(statement.as_ref(), env);
         if is_error(e.as_ref()) {
             return e;
         }
@@ -185,17 +191,27 @@ fn eval_integer_infix_expression(
     }
 }
 
-fn eval_if_expression(if_expression: &IfExpression) -> Rc<dyn Object> {
-    let condition = eval(if_expression.condition.as_ref());
+fn eval_if_expression(if_expression: &IfExpression, env: &mut Environment) -> Rc<dyn Object> {
+    let condition = eval(if_expression.condition.as_ref(), env);
     if is_error(condition.as_ref()) {
         return condition;
     }
     if is_truthy(condition.as_ref()) {
-        eval(if_expression.consequence.as_ref())
+        eval(if_expression.consequence.as_ref(), env)
     } else if let Some(block) = &if_expression.alternative {
-        eval(block.as_ref())
+        eval(block.as_ref(), env)
     } else {
         Rc::new(NULL)
+    }
+}
+
+fn eval_identifier(identifier: &Identifier, env: &mut Environment) -> Rc<dyn Object> {
+    if let Some(val) = env.get(&identifier.value) {
+        val
+    } else {
+        Rc::new(Error {
+            message: format!("identifier not found: {}", identifier.value),
+        })
     }
 }
 
@@ -398,6 +414,7 @@ mod tests {
 
         for (input, expected) in input {
             let evaluated = test_eval(input);
+            println!("{:?}", evaluated.as_ref().inspect());
             test_integer_object(evaluated.as_ref(), expected);
         }
     }
@@ -407,7 +424,8 @@ mod tests {
         let mut p = Parser::new(&mut l);
         let program = p.parse_program();
         let program = program.expect("Program failed to parse");
-        eval(&program)
+        let mut env = Environment::default();
+        eval(&program, &mut env)
     }
 
     fn test_integer_object(obj: &dyn Object, expected: i64) {

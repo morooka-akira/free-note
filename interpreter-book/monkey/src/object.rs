@@ -96,26 +96,17 @@ impl Object for Error {
 }
 
 // ------------------------------
+#[derive(Default)]
 pub struct Environment {
-    store: HashMap<String, Box<dyn Object>>,
+    store: HashMap<String, Rc<dyn Object>>,
 }
 
 impl Environment {
-    pub fn new() -> Environment {
-        Environment {
-            store: HashMap::new(),
-        }
+    pub fn get(&self, name: &str) -> Option<Rc<dyn Object>> {
+        self.store.get(name).cloned()
     }
 
-    pub fn get(&self, name: &str) -> Option<&dyn Object> {
-        if let Some(obj) = self.store.get(name) {
-            Some(obj.as_ref())
-        } else {
-            None
-        }
-    }
-
-    pub fn set(&mut self, name: &str, val: Box<dyn Object>) -> Option<Box<dyn Object>> {
+    pub fn set(&mut self, name: &str, val: Rc<dyn Object>) -> Option<Rc<dyn Object>> {
         self.store.insert(name.to_string(), val)
     }
 }

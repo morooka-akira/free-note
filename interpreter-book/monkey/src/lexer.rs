@@ -138,7 +138,7 @@ fn is_letter(ch: char) -> bool {
 }
 
 fn is_digit(ch: char) -> bool {
-    ch.is_digit(10)
+    ch.is_ascii_digit()
 }
 
 #[cfg(test)]

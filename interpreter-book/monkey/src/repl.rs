@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::{evaluator, lexer::Lexer, parser::Parser};
+use crate::{evaluator, lexer::Lexer, object::Environment, parser::Parser};
 
 const MONKEY_FACE: &str = r#"
             __,__
@@ -18,6 +18,7 @@ const MONKEY_FACE: &str = r#"
 "#;
 
 pub fn start() {
+    let mut env = Environment::default();
     loop {
         let mut buf = String::new();
         print!(">> ");
@@ -34,9 +35,8 @@ pub fn start() {
             print_parser_errors(&p.errors);
             continue;
         }
-
         if let Ok(program) = program {
-            let evaluated = evaluator::eval(&program);
+            let evaluated = evaluator::eval(&program, &mut env);
             println!("{}", evaluated.inspect());
         } else {
             println!("Program is not valid.");
