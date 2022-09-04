@@ -2,12 +2,15 @@ use std::{collections::HashMap, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 
+use crate::ast::{BlockStatement, Identifier, Node};
+
 pub type ObjectType = String;
 pub const INTEGER_OBJ: &str = "INTEGER";
 pub const BOOLEAN_OBJ: &str = "BOOLEAN";
 pub const NULL_OBJ: &str = "NULL";
 pub const RETURN_VALUE_OBJ: &str = "RETURN_VALUE";
 pub const ERROR_OBJ: &str = "ERROR_OBJ";
+pub const FUNCTION_OBJ: &str = "FUNCTION_OBJ";
 
 pub trait Object: Downcast {
     fn obj_type(&self) -> ObjectType;
@@ -92,6 +95,38 @@ impl Object for Error {
 
     fn inspect(&self) -> String {
         "ERROR: ".to_string() + &self.message
+    }
+}
+
+// ------------------------------
+pub struct Function {
+    pub parameters: Vec<Rc<Identifier>>,
+    pub body: Box<BlockStatement>,
+    pub env: Box<Environment>,
+}
+
+impl Object for Function {
+    fn obj_type(&self) -> ObjectType {
+        FUNCTION_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        let params = self
+            .parameters
+            .iter()
+            .map(|p| p.string())
+            .collect::<Vec<String>>()
+            .join(",");
+
+        let mut buf = String::new();
+        buf.push_str("fn");
+        buf.push('(');
+        buf.push_str(&params);
+        buf.push_str(") {\n");
+        buf.push_str(&self.body.string());
+        buf.push('\n');
+
+        buf
     }
 }
 
