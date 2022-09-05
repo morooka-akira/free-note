@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 
@@ -101,8 +101,8 @@ impl Object for Error {
 // ------------------------------
 pub struct Function {
     pub parameters: Vec<Rc<Identifier>>,
-    pub body: Box<BlockStatement>,
-    pub env: Box<Environment>,
+    pub body: Rc<BlockStatement>,
+    pub env: Rc<RefCell<Environment>>,
 }
 
 impl Object for Function {

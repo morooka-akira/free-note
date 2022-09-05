@@ -1,4 +1,4 @@
-use std::{fmt::format, process::id, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     ast::{
@@ -240,7 +240,7 @@ mod tests {
     use super::*;
     use crate::{
         lexer::Lexer,
-        object::{Boolean, Error},
+        object::{Boolean, Error, Function},
         parser::Parser,
     };
 
