@@ -89,7 +89,7 @@ impl Expression for IntegerLiteral {
 pub struct PrefixExpression {
     pub token: Rc<Token>,
     pub operator: String,
-    pub right: Box<dyn Expression>,
+    pub right: Rc<dyn Expression>,
 }
 
 impl Node for PrefixExpression {
@@ -116,9 +116,9 @@ impl Expression for PrefixExpression {
 /* ----------------------------------------------- */
 pub struct InfixExpression {
     pub token: Rc<Token>,
-    pub left: Box<dyn Expression>,
+    pub left: Rc<dyn Expression>,
     pub operator: String,
-    pub right: Box<dyn Expression>,
+    pub right: Rc<dyn Expression>,
 }
 
 impl Node for InfixExpression {
@@ -148,9 +148,9 @@ impl Expression for InfixExpression {
 /* ----------------------------------------------- */
 pub struct IfExpression {
     pub token: Rc<Token>,
-    pub condition: Box<dyn Expression>,
-    pub consequence: Box<BlockStatement>,
-    pub alternative: Option<Box<BlockStatement>>,
+    pub condition: Rc<dyn Expression>,
+    pub consequence: Rc<BlockStatement>,
+    pub alternative: Option<Rc<BlockStatement>>,
 }
 
 impl Node for IfExpression {
@@ -182,8 +182,8 @@ impl Expression for IfExpression {
 /* ----------------------------------------------- */
 pub struct CallExpression {
     pub token: Rc<Token>,
-    pub function: Box<dyn Expression>,
-    pub arguments: Vec<Box<dyn Expression>>,
+    pub function: Rc<dyn Expression>,
+    pub arguments: Vec<Rc<dyn Expression>>,
 }
 
 impl Node for CallExpression {
@@ -215,8 +215,8 @@ impl Expression for CallExpression {
 /* ----------------------------------------------- */
 pub struct FunctionLiteral {
     pub token: Rc<Token>,
-    pub parameters: Vec<Identifier>,
-    pub body: Box<BlockStatement>,
+    pub parameters: Vec<Rc<Identifier>>,
+    pub body: Rc<BlockStatement>,
 }
 
 impl Node for FunctionLiteral {
@@ -253,7 +253,7 @@ impl Expression for FunctionLiteral {
 pub struct LetStatement {
     pub token: Rc<Token>,
     pub name: Identifier,
-    pub value: Option<Box<dyn Expression>>,
+    pub value: Option<Rc<dyn Expression>>,
 }
 
 impl Node for LetStatement {
@@ -289,7 +289,7 @@ impl Statement for LetStatement {
 #[derive(Debug)]
 pub struct ReturnStatement {
     pub token: Rc<Token>,
-    pub return_value: Option<Box<dyn Expression>>,
+    pub return_value: Option<Rc<dyn Expression>>,
 }
 
 impl Node for ReturnStatement {
@@ -322,7 +322,7 @@ impl Statement for ReturnStatement {
 /* ----------------------------------------------- */
 pub struct ExpressionStatement {
     pub token: Rc<Token>,
-    pub expression: Option<Box<dyn Expression>>,
+    pub expression: Option<Rc<dyn Expression>>,
 }
 
 impl Node for ExpressionStatement {
@@ -349,7 +349,7 @@ impl Statement for ExpressionStatement {
 /* ----------------------------------------------- */
 pub struct BlockStatement {
     pub token: Rc<Token>,
-    pub statements: Vec<Box<dyn Statement>>,
+    pub statements: Vec<Rc<dyn Statement>>,
 }
 
 impl Node for BlockStatement {
@@ -396,7 +396,7 @@ impl Expression for Boolean {
 
 /* ----------------------------------------------- */
 pub struct Program {
-    pub statements: Vec<Box<dyn Statement>>,
+    pub statements: Vec<Rc<dyn Statement>>,
 }
 
 impl Node for Program {
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_string() {
         let program = Program {
-            statements: vec![Box::new(LetStatement {
+            statements: vec![Rc::new(LetStatement {
                 token: Rc::new(Token {
                     token_type: LET,
                     literal: String::from("let"),
@@ -449,7 +449,7 @@ mod tests {
                     }),
                     value: String::from("myVar"),
                 },
-                value: Some(Box::new(Identifier {
+                value: Some(Rc::new(Identifier {
                     token: Rc::new(Token {
                         token_type: IDENT,
                         literal: String::from("anotherVar"),

@@ -1,18 +1,18 @@
-use std::{fmt::format, process::id, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean as BooleanAst, ExpressionStatement, Identifier, IfExpression,
-        InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression, Program,
-        ReturnStatement,
+        BlockStatement, Boolean as BooleanAst, ExpressionStatement, FunctionLiteral, Identifier,
+        IfExpression, InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression,
+        Program, ReturnStatement,
     },
     object::{
-        Boolean, Environment, Error, Integer, Object, ReturnValue, BOOLEAN_OBJ, ERROR_OBJ, FALSE,
-        INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
+        Boolean, Environment, Error, Function, Integer, Object, ReturnValue, BOOLEAN_OBJ,
+        ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
     },
 };
 
-pub fn eval(node: &dyn Node, env: &mut Environment) -> Rc<dyn Object> {
+pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
     if let Some(block) = node.downcast_ref::<BlockStatement>() {
         return eval_block_statement(block, env);
     }
@@ -42,7 +42,7 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> Rc<dyn Object> {
         return native_bool_to_boolean_object(boolean_literal.value);
     }
     if let Some(infix_expression) = node.downcast_ref::<InfixExpression>() {
-        let left = eval(infix_expression.left.as_ref(), env);
+        let left = eval(infix_expression.left.as_ref(), Rc::clone(&env));
         if is_error(left.as_ref()) {
             return left;
         }
@@ -69,21 +69,30 @@ pub fn eval(node: &dyn Node, env: &mut Environment) -> Rc<dyn Object> {
     }
     if let Some(let_statement) = node.downcast_ref::<LetStatement>() {
         let let_val = let_statement.value.as_ref();
-        let value = eval(let_val.unwrap().as_ref(), env);
+        let value = eval(let_val.unwrap().as_ref(), Rc::clone(&env));
         if is_error(value.as_ref()) {
             return value;
         }
+        let mut env = env.borrow_mut();
         env.set(&let_statement.name.value, Rc::clone(&value));
         return value;
+    }
+
+    if let Some(func) = node.downcast_ref::<FunctionLiteral>() {
+        return Rc::new(Function {
+            parameters: func.parameters.iter().map(Rc::clone).collect(),
+            body: Rc::clone(&func.body),
+            env,
+        });
     }
 
     new_error(&format!("eval: Unknown node type {}", node.token_literal()))
 }
 
-fn eval_program(program: &Program, env: &mut Environment) -> Rc<dyn Object> {
+fn eval_program(program: &Program, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
     let mut result = None;
     for statement in &program.statements {
-        let e = eval(statement.as_ref(), env);
+        let e = eval(statement.as_ref(), Rc::clone(&env));
         if is_error(e.as_ref()) {
             return e;
         }
@@ -95,10 +104,10 @@ fn eval_program(program: &Program, env: &mut Environment) -> Rc<dyn Object> {
     result.unwrap()
 }
 
-fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Rc<dyn Object> {
+fn eval_block_statement(block: &BlockStatement, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
     let mut result = None;
     for statement in &block.statements {
-        let e = eval(statement.as_ref(), env);
+        let e = eval(statement.as_ref(), Rc::clone(&env));
         if is_error(e.as_ref()) {
             return e;
         }
@@ -191,8 +200,11 @@ fn eval_integer_infix_expression(
     }
 }
 
-fn eval_if_expression(if_expression: &IfExpression, env: &mut Environment) -> Rc<dyn Object> {
-    let condition = eval(if_expression.condition.as_ref(), env);
+fn eval_if_expression(
+    if_expression: &IfExpression,
+    env: Rc<RefCell<Environment>>,
+) -> Rc<dyn Object> {
+    let condition = eval(if_expression.condition.as_ref(), Rc::clone(&env));
     if is_error(condition.as_ref()) {
         return condition;
     }
@@ -205,7 +217,8 @@ fn eval_if_expression(if_expression: &IfExpression, env: &mut Environment) -> Rc
     }
 }
 
-fn eval_identifier(identifier: &Identifier, env: &mut Environment) -> Rc<dyn Object> {
+fn eval_identifier(identifier: &Identifier, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
+    let env = env.borrow();
     if let Some(val) = env.get(&identifier.value) {
         val
     } else {
@@ -240,7 +253,7 @@ mod tests {
     use super::*;
     use crate::{
         lexer::Lexer,
-        object::{Boolean, Error},
+        object::{Boolean, Error, Function},
         parser::Parser,
     };
 
@@ -414,8 +427,32 @@ mod tests {
 
         for (input, expected) in input {
             let evaluated = test_eval(input);
-            println!("{:?}", evaluated.as_ref().inspect());
             test_integer_object(evaluated.as_ref(), expected);
+        }
+    }
+
+    #[test]
+    fn test_function_object() {
+        let input = "fn(x) { x + 2; };";
+
+        let evaluated = test_eval(input);
+        if let Some(func) = evaluated.downcast_ref::<Function>() {
+            if func.parameters.len() != 1 {
+                panic!(
+                    "function has wrong parameters. Parameters={:?}",
+                    func.parameters,
+                );
+            }
+            if "x" != func.parameters.first().unwrap().string() {
+                panic!("parameters is not 'x'. got={:?}", func.parameters.first(),);
+            }
+            assert_eq!(func.body.string(), "(x + 2)");
+        } else {
+            panic!(
+                "object is not Function. got = {} ( {})",
+                evaluated.obj_type(),
+                evaluated.inspect()
+            );
         }
     }
 
@@ -424,8 +461,8 @@ mod tests {
         let mut p = Parser::new(&mut l);
         let program = p.parse_program();
         let program = program.expect("Program failed to parse");
-        let mut env = Environment::default();
-        eval(&program, &mut env)
+        let env = Rc::new(RefCell::new(Environment::default()));
+        eval(&program, env)
     }
 
     fn test_integer_object(obj: &dyn Object, expected: i64) {

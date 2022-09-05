@@ -16,9 +16,9 @@ use crate::{
 };
 
 // トークンタイプが前置で出現した時
-type PrefixParseFn = fn(&mut Parser) -> Option<Box<dyn Expression>>;
+type PrefixParseFn = fn(&mut Parser) -> Option<Rc<dyn Expression>>;
 // トークンタイプが中置で出現した時
-type InfixParseFn = fn(&mut Parser, Box<dyn Expression>) -> Option<Box<dyn Expression>>;
+type InfixParseFn = fn(&mut Parser, Rc<dyn Expression>) -> Option<Rc<dyn Expression>>;
 
 #[derive(Clone, Copy)]
 enum Precedence {
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
         Ok(program)
     }
 
-    fn parse_statement(&mut self) -> Option<Box<dyn Statement>> {
+    fn parse_statement(&mut self) -> Option<Rc<dyn Statement>> {
         match self.cur_token.token_type {
             LET => self.parse_let_statement(),
             RETURN => self.parse_return_statement(),
@@ -118,7 +118,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_let_statement(&mut self) -> Option<Box<dyn Statement>> {
+    fn parse_let_statement(&mut self) -> Option<Rc<dyn Statement>> {
         let token = Rc::clone(&self.cur_token);
 
         if !self.expect_peek(IDENT) {
@@ -140,10 +140,10 @@ impl<'a> Parser<'a> {
         if self.peek_token_is(SEMICOLON) {
             self.next_token();
         }
-        Some(Box::new(LetStatement { token, name, value }))
+        Some(Rc::new(LetStatement { token, name, value }))
     }
 
-    fn parse_return_statement(&mut self) -> Option<Box<dyn Statement>> {
+    fn parse_return_statement(&mut self) -> Option<Rc<dyn Statement>> {
         let token = Rc::clone(&self.cur_token);
 
         self.next_token();
@@ -154,13 +154,13 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        Some(Box::new(ReturnStatement {
+        Some(Rc::new(ReturnStatement {
             token,
             return_value: value,
         }))
     }
 
-    fn parse_expression_statement(&mut self) -> Option<Box<dyn Statement>> {
+    fn parse_expression_statement(&mut self) -> Option<Rc<dyn Statement>> {
         let token = Rc::clone(&self.cur_token);
 
         let expression = self.parse_expression(Precedence::LOWEST);
@@ -169,10 +169,10 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        Some(Box::new(ExpressionStatement { token, expression }))
+        Some(Rc::new(ExpressionStatement { token, expression }))
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn Expression>> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Rc<dyn Expression>> {
         let prefix = self.prefix_parse_fns.get(&self.cur_token.token_type);
         if prefix.is_none() {
             self.no_prefix_parse_fn_error(self.cur_token.token_type);
@@ -195,17 +195,17 @@ impl<'a> Parser<'a> {
         left_exp
     }
 
-    fn parse_identifier(parser: &mut Parser) -> Option<Box<dyn Expression>> {
-        Some(Box::new(Identifier {
+    fn parse_identifier(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
+        Some(Rc::new(Identifier {
             token: parser.cur_token.clone(),
             value: parser.cur_token.literal.clone(),
         }))
     }
 
-    fn parse_integer_literal(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+    fn parse_integer_literal(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
         let token = parser.cur_token.clone();
         match token.literal.parse::<i64>() {
-            Ok(value) => Some(Box::new(IntegerLiteral { token, value })),
+            Ok(value) => Some(Rc::new(IntegerLiteral { token, value })),
             Err(err) => {
                 parser.errors.push(format!("{}", err));
                 None
@@ -213,21 +213,21 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_boolean(parser: &mut Parser) -> Option<Box<dyn Expression>> {
-        Some(Box::new(Boolean {
+    fn parse_boolean(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
+        Some(Rc::new(Boolean {
             token: parser.cur_token.clone(),
             value: parser.cur_token_is(TRUE),
         }))
     }
 
-    fn parse_prefix_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+    fn parse_prefix_expression(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
         let operator = token.literal.as_str();
 
         parser.next_token();
 
         match parser.parse_expression(Precedence::PREFIX) {
-            Some(exp) => Some(Box::new(PrefixExpression {
+            Some(exp) => Some(Rc::new(PrefixExpression {
                 token: Rc::clone(&token),
                 operator: operator.to_string(),
                 right: exp,
@@ -241,7 +241,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_grouped_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+    fn parse_grouped_expression(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
         parser.next_token();
 
         let exp = parser.parse_expression(Precedence::LOWEST);
@@ -254,8 +254,8 @@ impl<'a> Parser<'a> {
 
     fn parse_infix_expression(
         parser: &mut Parser,
-        left: Box<dyn Expression>,
-    ) -> Option<Box<dyn Expression>> {
+        left: Rc<dyn Expression>,
+    ) -> Option<Rc<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
         let operator = token.literal.as_str();
         let precedence = parser.cur_precedence();
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
         parser.next_token();
 
         match parser.parse_expression(precedence) {
-            Some(right) => Some(Box::new(InfixExpression {
+            Some(right) => Some(Rc::new(InfixExpression {
                 token: Rc::clone(&token),
                 operator: operator.to_string(),
                 right,
@@ -278,7 +278,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_if_expression(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+    fn parse_if_expression(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
 
         if !parser.expect_peek(LPAREN) {
@@ -310,7 +310,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Some(Box::new(IfExpression {
+        Some(Rc::new(IfExpression {
             token,
             condition: condition.unwrap(),
             consequence: consequence.unwrap(),
@@ -318,7 +318,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_function_literal(parser: &mut Parser) -> Option<Box<dyn Expression>> {
+    fn parse_function_literal(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
 
         if !parser.expect_peek(LPAREN) {
@@ -333,14 +333,14 @@ impl<'a> Parser<'a> {
 
         let body = parser.parse_block_statement();
 
-        Some(Box::new(FunctionLiteral {
+        Some(Rc::new(FunctionLiteral {
             token,
             parameters: parameters.unwrap(),
             body: body.unwrap(),
         }))
     }
 
-    fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
+    fn parse_function_parameters(&mut self) -> Option<Vec<Rc<Identifier>>> {
         let mut identifiers = Vec::new();
 
         if self.peek_token_is(RPAREN) {
@@ -353,7 +353,7 @@ impl<'a> Parser<'a> {
             token: self.cur_token.clone(),
             value: self.cur_token.literal.clone(),
         };
-        identifiers.push(ident);
+        identifiers.push(Rc::new(ident));
 
         while self.peek_token_is(COMMA) {
             // ,はスキップ
@@ -363,7 +363,7 @@ impl<'a> Parser<'a> {
                 token: self.cur_token.clone(),
                 value: self.cur_token.literal.clone(),
             };
-            identifiers.push(ident);
+            identifiers.push(Rc::new(ident));
         }
 
         if !self.expect_peek(RPAREN) {
@@ -375,18 +375,18 @@ impl<'a> Parser<'a> {
 
     fn parse_call_expression(
         parser: &mut Parser,
-        left: Box<dyn Expression>,
-    ) -> Option<Box<dyn Expression>> {
+        left: Rc<dyn Expression>,
+    ) -> Option<Rc<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
         let arguments = parser.parse_call_arguments().unwrap();
-        Some(Box::new(CallExpression {
+        Some(Rc::new(CallExpression {
             token,
             function: left,
             arguments,
         }))
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<Box<dyn Expression>>> {
+    fn parse_call_arguments(&mut self) -> Option<Vec<Rc<dyn Expression>>> {
         let mut args = Vec::new();
         if self.peek_token_is(RPAREN) {
             self.next_token();
@@ -405,9 +405,9 @@ impl<'a> Parser<'a> {
         Some(args)
     }
 
-    fn parse_block_statement(&mut self) -> Option<Box<BlockStatement>> {
+    fn parse_block_statement(&mut self) -> Option<Rc<BlockStatement>> {
         let token = Rc::clone(&self.cur_token);
-        let mut statements: Vec<Box<dyn Statement>> = vec![];
+        let mut statements: Vec<Rc<dyn Statement>> = vec![];
 
         self.next_token();
 
@@ -418,7 +418,7 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        Some(Box::new(BlockStatement { token, statements }))
+        Some(Rc::new(BlockStatement { token, statements }))
     }
 
     fn expect_peek(&mut self, token_type: TokenType) -> bool {
@@ -861,8 +861,8 @@ mod tests {
                     fun_exp.parameters.len()
                 );
             }
-            test_literal_expression(&fun_exp.parameters[0], &"x");
-            test_literal_expression(&fun_exp.parameters[1], &"y");
+            test_literal_expression(fun_exp.parameters[0].as_ref(), &"x");
+            test_literal_expression(fun_exp.parameters[1].as_ref(), &"y");
             let st = &fun_exp.body.as_ref().statements[0];
             let body_stmt = (*st).downcast_ref::<ExpressionStatement>().unwrap();
             let ex = body_stmt.expression.as_ref().unwrap();
@@ -943,7 +943,7 @@ mod tests {
                     );
                 }
                 for (i, param) in fun_exp.parameters.iter().enumerate() {
-                    test_literal_expression(param, &expected[i]);
+                    test_literal_expression(param.as_ref(), &expected[i]);
                 }
             }
         }
