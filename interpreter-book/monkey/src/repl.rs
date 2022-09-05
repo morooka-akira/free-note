@@ -1,4 +1,8 @@
-use std::io::{self, Write};
+use std::{
+    cell::RefCell,
+    io::{self, Write},
+    rc::Rc,
+};
 
 use crate::{evaluator, lexer::Lexer, object::Environment, parser::Parser};
 
@@ -18,7 +22,7 @@ const MONKEY_FACE: &str = r#"
 "#;
 
 pub fn start() {
-    let mut env = Environment::default();
+    let env = Rc::new(RefCell::new(Environment::default()));
     loop {
         let mut buf = String::new();
         print!(">> ");
@@ -36,7 +40,7 @@ pub fn start() {
             continue;
         }
         if let Ok(program) = program {
-            let evaluated = evaluator::eval(&program, &mut env);
+            let evaluated = evaluator::eval(&program, Rc::clone(&env));
             println!("{}", evaluated.inspect());
         } else {
             println!("Program is not valid.");
