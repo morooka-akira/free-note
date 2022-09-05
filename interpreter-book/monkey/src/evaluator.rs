@@ -414,8 +414,32 @@ mod tests {
 
         for (input, expected) in input {
             let evaluated = test_eval(input);
-            println!("{:?}", evaluated.as_ref().inspect());
             test_integer_object(evaluated.as_ref(), expected);
+        }
+    }
+
+    #[test]
+    fn test_function_object() {
+        let input = "fn(x) { x + 2; };";
+
+        let evaluated = test_eval(input);
+        if let Some(func) = evaluated.downcast_ref::<Function>() {
+            if func.parameters.len() != 1 {
+                panic!(
+                    "function has wrong parameters. Parameters={:?}",
+                    func.parameters,
+                );
+            }
+            if "x" != func.parameters.first().unwrap().string() {
+                panic!("parameters is not 'x'. got={:?}", func.parameters.first(),);
+            }
+            assert_eq!(func.body.string(), "(x + 2)");
+        } else {
+            panic!(
+                "object is not Function. got = {} ( {})",
+                evaluated.obj_type(),
+                evaluated.inspect()
+            );
         }
     }
 
