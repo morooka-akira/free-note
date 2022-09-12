@@ -2,9 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean as BooleanAst, ExpressionStatement, FunctionLiteral, Identifier,
-        IfExpression, InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression,
-        Program, ReturnStatement,
+        BlockStatement, Boolean as BooleanAst, CallExpression, Expression, ExpressionStatement,
+        FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
+        Node, PrefixExpression, Program, ReturnStatement,
     },
     object::{
         Boolean, Environment, Error, Function, Integer, Object, ReturnValue, BOOLEAN_OBJ,
@@ -86,7 +86,61 @@ pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
         });
     }
 
+    if let Some(call) = node.downcast_ref::<CallExpression>() {
+        let func = eval(call.function.as_ref(), Rc::clone(&env));
+        if is_error(func.as_ref()) {
+            return func;
+        }
+        let args = call.arguments.iter().map(Rc::clone).collect();
+        let args = eval_expressions(args, env);
+        if args.len() == 1 && is_error(args[0].as_ref()) {
+            return Rc::clone(&args[0]);
+        }
+        return apply_function(func, args);
+    }
+
     new_error(&format!("eval: Unknown node type {}", node.token_literal()))
+}
+
+fn apply_function(object: Rc<dyn Object>, args: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
+    if let Some(func) = object.as_ref().downcast_ref::<Function>() {
+        let extended_env = extend_function_env(func, args);
+        let evaluated = eval(func.body.as_ref(), extended_env);
+        unwrap_return_value(evaluated)
+    } else {
+        new_error(&format!("not a function: {}", object.obj_type()))
+    }
+}
+
+fn extend_function_env(func: &Function, args: Vec<Rc<dyn Object>>) -> Rc<RefCell<Environment>> {
+    let mut env = Environment::new_enclosed_environment(Rc::clone(&func.env));
+    for (i, param) in func.parameters.iter().enumerate() {
+        env.set(&param.value, Rc::clone(&args[i]));
+    }
+    Rc::new(RefCell::new(env))
+}
+
+fn unwrap_return_value(object: Rc<dyn Object>) -> Rc<dyn Object> {
+    if let Some(return_val) = object.downcast_ref::<ReturnValue>() {
+        Rc::clone(&return_val.value)
+    } else {
+        object
+    }
+}
+
+fn eval_expressions(
+    exps: Vec<Rc<dyn Expression>>,
+    env: Rc<RefCell<Environment>>,
+) -> Vec<Rc<dyn Object>> {
+    let mut result: Vec<Rc<dyn Object>> = vec![];
+    for exp in exps {
+        let evaluated = eval(exp.as_ref(), Rc::clone(&env));
+        if is_error(evaluated.as_ref()) {
+            return vec![evaluated];
+        }
+        result.push(evaluated);
+    }
+    result
 }
 
 fn eval_program(program: &Program, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
@@ -453,6 +507,22 @@ mod tests {
                 evaluated.obj_type(),
                 evaluated.inspect()
             );
+        }
+    }
+
+    #[test]
+    fn test_function_application() {
+        let input = vec![
+            ("let identity = fn (x) { x; }; identity(5);", 5),
+            ("let identity = fn (x) { return x; }; identity(5);", 5),
+            ("let double = fn (x) { x * 2; }; double(5);", 10),
+            ("let add = fn (x, y) { x + y; }; add(5, 5);", 10),
+            ("let add = fn (x, y) { x + y; }; add(5 + 5, add(5, 5));", 20),
+            ("fn (x) { x; }(5);", 5),
+        ];
+        for (input, expected) in input {
+            let evaluated = test_eval(input);
+            test_integer_object(evaluated.as_ref(), expected);
         }
     }
 
