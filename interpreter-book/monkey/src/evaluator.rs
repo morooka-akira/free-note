@@ -4,11 +4,11 @@ use crate::{
     ast::{
         BlockStatement, Boolean as BooleanAst, CallExpression, Expression, ExpressionStatement,
         FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-        Node, PrefixExpression, Program, ReturnStatement,
+        Node, PrefixExpression, Program, ReturnStatement, StringLiteral,
     },
     object::{
-        Boolean, Environment, Error, Function, Integer, Object, ReturnValue, BOOLEAN_OBJ,
-        ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
+        Boolean, Environment, Error, Function, Integer, Object, ReturnValue, StringObj,
+        BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
     },
 };
 
@@ -97,6 +97,12 @@ pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
             return Rc::clone(&args[0]);
         }
         return apply_function(func, args);
+    }
+
+    if let Some(str) = node.downcast_ref::<StringLiteral>() {
+        return Rc::new(StringObj {
+            value: str.value.clone(),
+        });
     }
 
     new_error(&format!("eval: Unknown node type {}", node.token_literal()))
@@ -307,7 +313,7 @@ mod tests {
     use super::*;
     use crate::{
         lexer::Lexer,
-        object::{Boolean, Error, Function},
+        object::{Boolean, Error, Function, StringObj},
         parser::Parser,
     };
 
@@ -538,6 +544,18 @@ mod tests {
         "#;
         let evaluated = test_eval(input);
         test_integer_object(evaluated.as_ref(), 4);
+    }
+
+    #[test]
+    fn test_string_literal() {
+        let input = "\"Hello World!\"";
+        let evaluated = test_eval(input);
+
+        if let Some(str) = evaluated.downcast_ref::<StringObj>() {
+            assert_eq!(str.value, "Hello World!");
+        } else {
+            panic!("object is not String. got={}", evaluated.inspect());
+        }
     }
 
     fn test_eval(input: &str) -> Rc<dyn Object> {

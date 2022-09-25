@@ -11,6 +11,7 @@ pub const NULL_OBJ: &str = "NULL";
 pub const RETURN_VALUE_OBJ: &str = "RETURN_VALUE";
 pub const ERROR_OBJ: &str = "ERROR_OBJ";
 pub const FUNCTION_OBJ: &str = "FUNCTION_OBJ";
+pub const STRING_OBJ: &str = "STRING_OBJ";
 
 pub trait Object: Downcast {
     fn obj_type(&self) -> ObjectType;
@@ -127,6 +128,21 @@ impl Object for Function {
         buf.push('\n');
 
         buf
+    }
+}
+
+// ------------------------------
+pub struct StringObj {
+    pub value: String,
+}
+
+impl Object for StringObj {
+    fn obj_type(&self) -> ObjectType {
+        STRING_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        self.value.clone()
     }
 }
 
