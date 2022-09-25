@@ -11,6 +11,7 @@ pub const EOF: &str = "EOF";
 // 識別子 + リテラル
 pub const IDENT: &str = "IDENT";
 pub const INT: &str = "INT";
+pub const STRING: &str = "STRING";
 // 演算子
 pub const ASSIGN: &str = "=";
 pub const PLUS: &str = "+";

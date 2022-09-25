@@ -526,6 +526,20 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_closures() {
+        let input = r#"
+        let newAdder = fn(x) {
+            fn(y) { x + y };
+        };
+
+        let addTwo = newAdder(2);
+        addTwo(2);
+        "#;
+        let evaluated = test_eval(input);
+        test_integer_object(evaluated.as_ref(), 4);
+    }
+
     fn test_eval(input: &str) -> Rc<dyn Object> {
         let mut l = Lexer::new(input);
         let mut p = Parser::new(&mut l);

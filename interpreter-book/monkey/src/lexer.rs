@@ -1,6 +1,6 @@
 use crate::token::{
     lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, EOF, EQ, GT, ILLEGAL, INT,
-    LBRACE, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RPAREN, SEMICOLON, SLASH,
+    LBRACE, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RPAREN, SEMICOLON, SLASH, STRING,
 };
 
 pub struct Lexer<'a> {
@@ -62,6 +62,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn read_string(&mut self) -> String {
+        // 初めの"をスキップしている
+        let position = self.position + 1;
+        loop {
+            self.read_char();
+            if self.ch == '"' || self.ch == '\0' {
+                break;
+            }
+        }
+        self.input[position..self.position].to_string()
+    }
+
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
         let token = match self.ch {
@@ -101,6 +113,10 @@ impl<'a> Lexer<'a> {
             '>' => new_token(GT, self.ch),
             '{' => new_token(LBRACE, self.ch),
             '}' => new_token(RBRACE, self.ch),
+            '"' => Token {
+                token_type: STRING,
+                literal: self.read_string(),
+            },
             '\0' => new_token(EOF, '\0'),
             _ => {
                 if is_letter(self.ch) {
@@ -143,7 +159,7 @@ fn is_digit(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::{ELSE, FALSE, FUNCTION, IDENT, IF, LET, RETURN, TRUE};
+    use crate::token::{ELSE, FALSE, FUNCTION, IDENT, IF, LET, RETURN, STRING, TRUE};
 
     use super::*;
     struct NextTokenTest {
@@ -196,6 +212,8 @@ mod tests {
 
             10 == 10;
             10 != 9;
+            "foobar";
+            "foo bar";
         "#;
         let tests = [
             NextTokenTest {
@@ -485,6 +503,22 @@ mod tests {
             NextTokenTest {
                 expected_type: INT,
                 expected_literal: "9",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: STRING,
+                expected_literal: "foobar",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: STRING,
+                expected_literal: "foo bar",
             },
             NextTokenTest {
                 expected_type: SEMICOLON,

@@ -5,13 +5,13 @@ use crate::{
     ast::{
         BlockStatement, Boolean, CallExpression, Expression, ExpressionStatement, FunctionLiteral,
         Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement, PrefixExpression,
-        Program, ReturnStatement, Statement,
+        Program, ReturnStatement, Statement, StringLiteral,
     },
     lexer::Lexer,
     token::{
         Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, ELSE, EOF, EQ, FALSE, FUNCTION, GT, IDENT,
         IF, INT, LBRACE, LET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RETURN, RPAREN, SEMICOLON,
-        SLASH, TRUE,
+        SLASH, STRING, TRUE,
     },
 };
 
@@ -78,6 +78,7 @@ impl<'a> Parser<'a> {
         parser.register_prefix(LPAREN, Parser::parse_grouped_expression);
         parser.register_prefix(IF, Parser::parse_if_expression);
         parser.register_prefix(FUNCTION, Parser::parse_function_literal);
+        parser.register_prefix(STRING, Parser::parse_string_literal);
 
         parser.register_infix(PLUS, Parser::parse_infix_expression);
         parser.register_infix(MINUS, Parser::parse_infix_expression);
@@ -340,6 +341,15 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_string_literal(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+
+        Some(Rc::new(StringLiteral {
+            token,
+            value: parser.cur_token.literal.clone(),
+        }))
+    }
+
     fn parse_function_parameters(&mut self) -> Option<Vec<Rc<Identifier>>> {
         let mut identifiers = Vec::new();
 
@@ -485,7 +495,7 @@ mod tests {
         ast::{
             Boolean, CallExpression, Expression, ExpressionStatement, FunctionLiteral, Identifier,
             IfExpression, InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression,
-            ReturnStatement,
+            ReturnStatement, StringLiteral,
         },
         lexer::Lexer,
     };
@@ -996,6 +1006,36 @@ mod tests {
             check_parser_errors(&p);
             let program = program.unwrap();
             assert_eq!(program.string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = "\"hello world\";";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+        check_parser_errors(&p);
+
+        let program = program.unwrap();
+        println!("{:?}", program.string());
+        let stmt = program.statements.get(0).unwrap();
+        if let Some(exp) = stmt.clone().downcast_ref::<ExpressionStatement>() {
+            let expression = exp.expression.as_ref().unwrap();
+            match expression.downcast_ref::<StringLiteral>() {
+                Some(literal) => {
+                    assert_eq!(literal.value, "hello world")
+                }
+                None => {
+                    panic!("literal not StringLiteral");
+                }
+            }
+        } else {
+            panic!("stmt not ExpressionStatement");
         }
     }
 

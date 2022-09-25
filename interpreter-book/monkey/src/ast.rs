@@ -86,6 +86,30 @@ impl Expression for IntegerLiteral {
 }
 
 /* ----------------------------------------------- */
+pub struct StringLiteral {
+    pub token: Rc<Token>,
+    pub value: String,
+}
+
+impl Node for StringLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push_str(&self.value);
+        buf
+    }
+}
+
+impl Expression for StringLiteral {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
 pub struct PrefixExpression {
     pub token: Rc<Token>,
     pub operator: String,
