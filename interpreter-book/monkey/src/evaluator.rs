@@ -8,7 +8,8 @@ use crate::{
     },
     object::{
         Boolean, Environment, Error, Function, Integer, Object, ReturnValue, StringObj,
-        BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, TRUE,
+        BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, STRING_OBJ,
+        TRUE,
     },
 };
 
@@ -209,6 +210,8 @@ fn eval_minus_prefix_operator_expression(right: &dyn Object) -> Rc<dyn Object> {
 fn eval_infix_expression(operator: &str, left: &dyn Object, right: &dyn Object) -> Rc<dyn Object> {
     if left.obj_type() == INTEGER_OBJ && right.obj_type() == INTEGER_OBJ {
         eval_integer_infix_expression(operator, left, right)
+    } else if left.obj_type() == STRING_OBJ && right.obj_type() == STRING_OBJ {
+        eval_string_infix_expression(operator, left, right)
     } else if operator == "==" {
         let left_bool = left.downcast_ref::<Boolean>().unwrap().value;
         let right_bool = right.downcast_ref::<Boolean>().unwrap().value;
@@ -260,6 +263,25 @@ fn eval_integer_infix_expression(
     }
 }
 
+fn eval_string_infix_expression(
+    operator: &str,
+    left: &dyn Object,
+    right: &dyn Object,
+) -> Rc<dyn Object> {
+    if operator != "+" {
+        return new_error(&format!(
+            "unknown operator: {} {} {}",
+            left.obj_type(),
+            operator,
+            right.obj_type()
+        ));
+    }
+    let left_val = left.downcast_ref::<StringObj>().unwrap().value.clone();
+    let right_val = right.downcast_ref::<StringObj>().unwrap().value.clone();
+    Rc::new(StringObj {
+        value: format!("{}{}", left_val, right_val),
+    })
+}
 fn eval_if_expression(
     if_expression: &IfExpression,
     env: Rc<RefCell<Environment>>,
@@ -461,6 +483,7 @@ mod tests {
                 "unknown operator: BOOLEAN + BOOLEAN",
             ),
             ("foobar", "identifier not found: foobar"),
+            ("\"Hello\" - \"World\"", "unknown operator: STRING - STRING"),
         ];
         for (input, expected) in input {
             let evaluated = test_eval(input);
@@ -549,6 +572,19 @@ mod tests {
     #[test]
     fn test_string_literal() {
         let input = "\"Hello World!\"";
+        let evaluated = test_eval(input);
+
+        if let Some(str) = evaluated.downcast_ref::<StringObj>() {
+            assert_eq!(str.value, "Hello World!");
+        } else {
+            panic!("object is not String. got={}", evaluated.inspect());
+        }
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = "\"Hello\" + \" \" + \"World!\"";
+
         let evaluated = test_eval(input);
 
         if let Some(str) = evaluated.downcast_ref::<StringObj>() {
