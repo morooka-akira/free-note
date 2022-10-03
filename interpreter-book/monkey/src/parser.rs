@@ -3,15 +3,15 @@ use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean, CallExpression, Expression, ExpressionStatement, FunctionLiteral,
-        Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement, PrefixExpression,
-        Program, ReturnStatement, Statement, StringLiteral,
+        ArrayLiteral, BlockStatement, Boolean, CallExpression, Expression, ExpressionStatement,
+        FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
+        PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
     },
     lexer::Lexer,
     token::{
         Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, ELSE, EOF, EQ, FALSE, FUNCTION, GT, IDENT,
-        IF, INT, LBRACE, LET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RETURN, RPAREN, SEMICOLON,
-        SLASH, STRING, TRUE,
+        IF, INT, LBRACE, LBRACKET, LET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RBRACKET, RETURN,
+        RPAREN, SEMICOLON, SLASH, STRING, TRUE,
     },
 };
 
@@ -79,6 +79,7 @@ impl<'a> Parser<'a> {
         parser.register_prefix(IF, Parser::parse_if_expression);
         parser.register_prefix(FUNCTION, Parser::parse_function_literal);
         parser.register_prefix(STRING, Parser::parse_string_literal);
+        parser.register_prefix(LBRACKET, Parser::parse_array_literal);
 
         parser.register_infix(PLUS, Parser::parse_infix_expression);
         parser.register_infix(MINUS, Parser::parse_infix_expression);
@@ -350,6 +351,16 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_array_literal(parser: &mut Parser) -> Option<Rc<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+        let elements = parser.parse_expression_list(RBRACKET);
+
+        Some(Rc::new(ArrayLiteral {
+            token,
+            elements: elements.unwrap(),
+        }))
+    }
+
     fn parse_function_parameters(&mut self) -> Option<Vec<Rc<Identifier>>> {
         let mut identifiers = Vec::new();
 
@@ -388,7 +399,7 @@ impl<'a> Parser<'a> {
         left: Rc<dyn Expression>,
     ) -> Option<Rc<dyn Expression>> {
         let token = Rc::clone(&parser.cur_token);
-        let arguments = parser.parse_call_arguments().unwrap();
+        let arguments = parser.parse_expression_list(RPAREN).unwrap();
         Some(Rc::new(CallExpression {
             token,
             function: left,
@@ -396,9 +407,9 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<Rc<dyn Expression>>> {
+    fn parse_expression_list(&mut self, end: TokenType) -> Option<Vec<Rc<dyn Expression>>> {
         let mut args = Vec::new();
-        if self.peek_token_is(RPAREN) {
+        if self.peek_token_is(end) {
             self.next_token();
             return Some(args);
         }
@@ -409,7 +420,7 @@ impl<'a> Parser<'a> {
             self.next_token();
             args.push(self.parse_expression(Precedence::LOWEST)?);
         }
-        if !self.expect_peek(RPAREN) {
+        if !self.expect_peek(end) {
             return None;
         }
         Some(args)
@@ -493,9 +504,9 @@ mod tests {
 
     use crate::{
         ast::{
-            Boolean, CallExpression, Expression, ExpressionStatement, FunctionLiteral, Identifier,
-            IfExpression, InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression,
-            ReturnStatement, StringLiteral,
+            ArrayLiteral, Boolean, CallExpression, Expression, ExpressionStatement,
+            FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral,
+            LetStatement, Node, PrefixExpression, ReturnStatement, StringLiteral,
         },
         lexer::Lexer,
     };
@@ -1022,7 +1033,6 @@ mod tests {
         check_parser_errors(&p);
 
         let program = program.unwrap();
-        println!("{:?}", program.string());
         let stmt = program.statements.get(0).unwrap();
         if let Some(exp) = stmt.clone().downcast_ref::<ExpressionStatement>() {
             let expression = exp.expression.as_ref().unwrap();
@@ -1033,6 +1043,38 @@ mod tests {
                 None => {
                     panic!("literal not StringLiteral");
                 }
+            }
+        } else {
+            panic!("stmt not ExpressionStatement");
+        }
+    }
+
+    #[test]
+    fn test_parser_array_literals() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+
+        let program = program.unwrap();
+        let stmt = program.statements.get(0).unwrap();
+
+        if let Some(exp) = stmt.clone().downcast_ref::<ExpressionStatement>() {
+            let expression = exp.expression.as_ref().unwrap();
+            if let Some(array) = expression.downcast_ref::<ArrayLiteral>() {
+                if array.elements.len() != 3 {
+                    panic!("len(array.elements) not 3");
+                }
+
+                test_integer_literal(array.elements[0].as_ref(), 1);
+                test_infix_expression(array.elements[1].as_ref(), &2, "*", &2);
+                test_infix_expression(array.elements[2].as_ref(), &3, "+", &3);
+            } else {
+                panic!("stmt not ArrayLiteral");
             }
         } else {
             panic!("stmt not ExpressionStatement");
