@@ -32,6 +32,8 @@ pub const LPAREN: &str = "(";
 pub const RPAREN: &str = ")";
 pub const LBRACE: &str = "{";
 pub const RBRACE: &str = "}";
+pub const LBRACKET: &str = "[";
+pub const RBRACKET: &str = "]";
 // キーワード
 pub const FUNCTION: &str = "FUNCTION";
 pub const LET: &str = "LET";

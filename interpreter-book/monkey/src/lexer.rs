@@ -1,6 +1,7 @@
 use crate::token::{
     lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, EOF, EQ, GT, ILLEGAL, INT,
-    LBRACE, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RPAREN, SEMICOLON, SLASH, STRING,
+    LBRACE, LBRACKET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RBRACKET, RPAREN, SEMICOLON, SLASH,
+    STRING,
 };
 
 pub struct Lexer<'a> {
@@ -113,6 +114,8 @@ impl<'a> Lexer<'a> {
             '>' => new_token(GT, self.ch),
             '{' => new_token(LBRACE, self.ch),
             '}' => new_token(RBRACE, self.ch),
+            '[' => new_token(LBRACKET, self.ch),
+            ']' => new_token(RBRACKET, self.ch),
             '"' => Token {
                 token_type: STRING,
                 literal: self.read_string(),
@@ -159,7 +162,7 @@ fn is_digit(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::{ELSE, FALSE, FUNCTION, IDENT, IF, LET, RETURN, STRING, TRUE};
+    use crate::token::{ELSE, FALSE, FUNCTION, IDENT, IF, LBRACKET, LET, RETURN, STRING, TRUE};
 
     use super::*;
     struct NextTokenTest {
@@ -214,6 +217,7 @@ mod tests {
             10 != 9;
             "foobar";
             "foo bar";
+            [1, 2];
         "#;
         let tests = [
             NextTokenTest {
@@ -519,6 +523,30 @@ mod tests {
             NextTokenTest {
                 expected_type: STRING,
                 expected_literal: "foo bar",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: LBRACKET,
+                expected_literal: "[",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "1",
+            },
+            NextTokenTest {
+                expected_type: COMMA,
+                expected_literal: ",",
+            },
+            NextTokenTest {
+                expected_type: INT,
+                expected_literal: "2",
+            },
+            NextTokenTest {
+                expected_type: RBRACKET,
+                expected_literal: "]",
             },
             NextTokenTest {
                 expected_type: SEMICOLON,
