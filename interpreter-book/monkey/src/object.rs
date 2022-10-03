@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 
@@ -9,8 +9,9 @@ pub const INTEGER_OBJ: &str = "INTEGER";
 pub const BOOLEAN_OBJ: &str = "BOOLEAN";
 pub const NULL_OBJ: &str = "NULL";
 pub const RETURN_VALUE_OBJ: &str = "RETURN_VALUE";
-pub const ERROR_OBJ: &str = "ERROR_OBJ";
-pub const FUNCTION_OBJ: &str = "FUNCTION_OBJ";
+pub const ERROR_OBJ: &str = "ERROR";
+pub const FUNCTION_OBJ: &str = "FUNCTION";
+pub const BUILTIN_OBJ: &str = "BUILTIN";
 pub const STRING_OBJ: &str = "STRING";
 
 pub trait Object: Downcast {
@@ -128,6 +129,22 @@ impl Object for Function {
         buf.push('\n');
 
         buf
+    }
+}
+
+// ------------------------------
+type BuiltinFunction = fn(args: Vec<Rc<dyn Object>>) -> Rc<dyn Object>;
+pub struct Builtin {
+    pub builtin_function: BuiltinFunction,
+}
+
+impl Object for Builtin {
+    fn obj_type(&self) -> ObjectType {
+        BUILTIN_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        "builtin function".to_string()
     }
 }
 

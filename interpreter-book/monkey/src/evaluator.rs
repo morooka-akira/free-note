@@ -1,4 +1,5 @@
-use std::{cell::RefCell, rc::Rc};
+use once_cell::sync::Lazy;
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
     ast::{
@@ -7,11 +8,38 @@ use crate::{
         Node, PrefixExpression, Program, ReturnStatement, StringLiteral,
     },
     object::{
-        Boolean, Environment, Error, Function, Integer, Object, ReturnValue, StringObj,
+        Boolean, Builtin, Environment, Error, Function, Integer, Object, ReturnValue, StringObj,
         BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, STRING_OBJ,
         TRUE,
     },
 };
+
+fn len(arg: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
+    if arg.len() != 1 {
+        return new_error(format!("wrong number of arguments. got={}, want=1", arg.len()).as_str());
+    }
+
+    if let Some(val) = arg.get(0) {
+        if let Some(str) = val.downcast_ref::<StringObj>() {
+            return Rc::new(Integer {
+                value: str.value.len() as i64,
+            });
+        }
+    }
+    let e = format!("argument to `len` not supported, got {}", arg[0].obj_type());
+    return new_error(e.as_str());
+}
+
+static BUILTIN: Lazy<HashMap<&str, Arc<Builtin>>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    m.insert(
+        "len",
+        Arc::new(Builtin {
+            builtin_function: len,
+        }),
+    );
+    m
+});
 
 pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
     if let Some(block) = node.downcast_ref::<BlockStatement>() {
@@ -113,10 +141,15 @@ fn apply_function(object: Rc<dyn Object>, args: Vec<Rc<dyn Object>>) -> Rc<dyn O
     if let Some(func) = object.as_ref().downcast_ref::<Function>() {
         let extended_env = extend_function_env(func, args);
         let evaluated = eval(func.body.as_ref(), extended_env);
-        unwrap_return_value(evaluated)
-    } else {
-        new_error(&format!("not a function: {}", object.obj_type()))
+        return unwrap_return_value(evaluated);
     }
+
+    if let Some(func) = object.as_ref().downcast_ref::<Builtin>() {
+        let f = func.builtin_function;
+        return f(args);
+    }
+
+    new_error(&format!("not a function: {}", object.obj_type()))
 }
 
 fn extend_function_env(func: &Function, args: Vec<Rc<dyn Object>>) -> Rc<RefCell<Environment>> {
@@ -301,13 +334,18 @@ fn eval_if_expression(
 
 fn eval_identifier(identifier: &Identifier, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
     let env = env.borrow();
+
     if let Some(val) = env.get(&identifier.value) {
-        val
-    } else {
-        Rc::new(Error {
-            message: format!("identifier not found: {}", identifier.value),
-        })
+        return val;
     }
+    if let Some(val) = BUILTIN.get(identifier.value.as_str()) {
+        return Rc::new(Builtin {
+            builtin_function: val.builtin_function,
+        });
+    }
+    Rc::new(Error {
+        message: format!("identifier not found: {}", identifier.value),
+    })
 }
 
 fn is_truthy(obj: &dyn Object) -> bool {
@@ -578,6 +616,34 @@ mod tests {
             assert_eq!(str.value, "Hello World!");
         } else {
             panic!("object is not String. got={}", evaluated.inspect());
+        }
+    }
+
+    #[test]
+    fn test_builtin_function() {
+        let input = vec![
+            ("len(\"\")", 0),
+            ("len(\"four\")", 4),
+            ("len(\"hello world\")", 11),
+        ];
+        let input_wrong = vec![
+            ("len(1)", "argument to `len` not supported, got INTEGER"),
+            (
+                "len(\"one\", \"two\")",
+                "wrong number of arguments. got=2, want=1",
+            ),
+        ];
+        for (input, expected) in input {
+            let evaluated = test_eval(input);
+            test_integer_object(evaluated.as_ref(), expected);
+        }
+        for (input, expected) in input_wrong {
+            let evaluated = test_eval(input);
+            if let Some(error) = evaluated.downcast_ref::<Error>() {
+                assert_eq!(error.message, expected)
+            } else {
+                panic!("object is not Error. got {}", evaluated.inspect())
+            }
         }
     }
 
