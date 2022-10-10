@@ -291,7 +291,6 @@ impl Node for ArrayLiteral {
             .collect::<Vec<String>>()
             .join(", ");
         let mut buf = String::new();
-        buf.push_str(self.token_literal().as_str());
         buf.push('[');
         buf.push_str(&params);
         buf.push(']');
@@ -300,6 +299,36 @@ impl Node for ArrayLiteral {
 }
 
 impl Expression for ArrayLiteral {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
+pub struct IndexExpression {
+    pub token: Rc<Token>,
+    pub left: Rc<dyn Expression>,
+    pub index: Rc<dyn Expression>,
+}
+
+impl Node for IndexExpression {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push('(');
+        buf.push_str(&self.left.string());
+        buf.push('[');
+        buf.push_str(&self.index.string());
+        buf.push(']');
+        buf.push(')');
+        buf
+    }
+}
+
+impl Expression for IndexExpression {
     fn expression_node(&self) -> bool {
         true
     }

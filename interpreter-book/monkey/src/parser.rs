@@ -4,8 +4,9 @@ use std::{collections::HashMap, rc::Rc};
 use crate::{
     ast::{
         ArrayLiteral, BlockStatement, Boolean, CallExpression, Expression, ExpressionStatement,
-        FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-        PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
+        FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression,
+        IntegerLiteral, LetStatement, PrefixExpression, Program, ReturnStatement, Statement,
+        StringLiteral,
     },
     lexer::Lexer,
     token::{
@@ -29,6 +30,7 @@ enum Precedence {
     PRODUCT,     // *
     PREFIX,      // -X or !X
     CALL,        // myFunction(X)
+    INDEX,       // array[index]
 }
 
 static PRECEDENCES: Lazy<HashMap<TokenType, Precedence>> = Lazy::new(|| {
@@ -42,6 +44,7 @@ static PRECEDENCES: Lazy<HashMap<TokenType, Precedence>> = Lazy::new(|| {
     m.insert(SLASH, Precedence::PRODUCT);
     m.insert(ASTERISK, Precedence::PRODUCT);
     m.insert(LPAREN, Precedence::CALL);
+    m.insert(LBRACKET, Precedence::INDEX);
     m
 });
 
@@ -90,6 +93,7 @@ impl<'a> Parser<'a> {
         parser.register_infix(LT, Parser::parse_infix_expression);
         parser.register_infix(GT, Parser::parse_infix_expression);
         parser.register_infix(LPAREN, Parser::parse_call_expression);
+        parser.register_infix(LBRACKET, Parser::parse_index_expression);
         parser
     }
 
@@ -361,6 +365,23 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_index_expression(
+        parser: &mut Parser,
+        left: Rc<dyn Expression>,
+    ) -> Option<Rc<dyn Expression>> {
+        let token = Rc::clone(&parser.cur_token);
+
+        parser.next_token();
+
+        let index = parser.parse_expression(Precedence::LOWEST).unwrap();
+
+        if !parser.expect_peek(RBRACKET) {
+            return None;
+        }
+
+        Some(Rc::new(IndexExpression { token, left, index }))
+    }
+
     fn parse_function_parameters(&mut self) -> Option<Vec<Rc<Identifier>>> {
         let mut identifiers = Vec::new();
 
@@ -505,8 +526,8 @@ mod tests {
     use crate::{
         ast::{
             ArrayLiteral, Boolean, CallExpression, Expression, ExpressionStatement,
-            FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral,
-            LetStatement, Node, PrefixExpression, ReturnStatement, StringLiteral,
+            FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression,
+            IntegerLiteral, LetStatement, Node, PrefixExpression, ReturnStatement, StringLiteral,
         },
         lexer::Lexer,
     };
@@ -1006,6 +1027,14 @@ mod tests {
                 "add(a + b + c * d / f + g)",
                 "add((((a + b) + ((c * d) / f)) + g))",
             ),
+            (
+                "a * [1, 2, 3, 4][b * c] * d",
+                "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+            ),
+            (
+                "add(a * b[2], b[1], 2 * [1, 2][1])",
+                "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+            ),
         ];
         for (input, expected) in tests {
             let mut l = Lexer::new(input);
@@ -1075,6 +1104,33 @@ mod tests {
                 test_infix_expression(array.elements[2].as_ref(), &3, "+", &3);
             } else {
                 panic!("stmt not ArrayLiteral");
+            }
+        } else {
+            panic!("stmt not ExpressionStatement");
+        }
+    }
+
+    #[test]
+    fn test_parsing_index_expressions() {
+        let input = "myArray[1 + 1]";
+
+        let mut l = Lexer::new(input);
+        let mut p = super::Parser::new(&mut l);
+        let program = p.parse_program();
+        if program.is_err() {
+            panic!("parse_program() returned an error");
+        }
+
+        let program = program.unwrap();
+        let stmt = program.statements.get(0).unwrap();
+
+        if let Some(exp) = stmt.clone().downcast_ref::<ExpressionStatement>() {
+            let expression = exp.expression.as_ref().unwrap();
+            if let Some(index_exp) = expression.downcast_ref::<IndexExpression>() {
+                test_identifier(index_exp.left.as_ref(), "myArray");
+                test_infix_expression(index_exp.index.as_ref(), &1, "+", &1);
+            } else {
+                panic!("stmt not IndexExpression");
             }
         } else {
             panic!("stmt not ExpressionStatement");
