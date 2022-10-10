@@ -1,4 +1,4 @@
-use std::{any::Any, cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::Write, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 
@@ -13,6 +13,7 @@ pub const ERROR_OBJ: &str = "ERROR";
 pub const FUNCTION_OBJ: &str = "FUNCTION";
 pub const BUILTIN_OBJ: &str = "BUILTIN";
 pub const STRING_OBJ: &str = "STRING";
+pub const ARRAY_OBJ: &str = "ARRAY";
 
 pub trait Object: Downcast {
     fn obj_type(&self) -> ObjectType;
@@ -160,6 +161,26 @@ impl Object for StringObj {
 
     fn inspect(&self) -> String {
         self.value.clone()
+    }
+}
+
+// ------------------------------
+pub struct Array {
+    pub elements: Vec<Rc<dyn Object>>,
+}
+
+impl Object for Array {
+    fn obj_type(&self) -> ObjectType {
+        ARRAY_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        let mut buf = String::new();
+        let elements: Vec<String> = self.elements.iter().map(|e| e.inspect()).collect();
+        buf.push('[');
+        buf.push_str(&elements.join(", "));
+        buf.push(']');
+        buf
     }
 }
 
