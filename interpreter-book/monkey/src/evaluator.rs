@@ -4,14 +4,14 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 use crate::{
     ast::{
         ArrayLiteral, BlockStatement, Boolean as BooleanAst, CallExpression, Expression,
-        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, InfixExpression,
-        IntegerLiteral, LetStatement, Node, PrefixExpression, Program, ReturnStatement,
-        StringLiteral,
+        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, IndexExpression,
+        InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression, Program,
+        ReturnStatement, StringLiteral,
     },
     object::{
         Array, Boolean, Builtin, Environment, Error, Function, Integer, Object, ReturnValue,
-        StringObj, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ,
-        STRING_OBJ, TRUE,
+        StringObj, ARRAY_OBJ, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ,
+        RETURN_VALUE_OBJ, STRING_OBJ, TRUE,
     },
 };
 
@@ -141,6 +141,18 @@ pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
             return Rc::clone(&elements[0]);
         }
         return Rc::new(Array { elements });
+    }
+
+    if let Some(index_exp) = node.downcast_ref::<IndexExpression>() {
+        let left = eval(index_exp.left.as_ref(), Rc::clone(&env));
+        if is_error(left.as_ref()) {
+            return left;
+        }
+        let index = eval(index_exp.index.as_ref(), Rc::clone(&env));
+        if is_error(index.as_ref()) {
+            return index;
+        }
+        return eval_index_expression(left.as_ref(), index.as_ref());
     }
 
     new_error(&format!("eval: Unknown node type {}", node.token_literal()))
@@ -355,6 +367,32 @@ fn eval_identifier(identifier: &Identifier, env: Rc<RefCell<Environment>>) -> Rc
     Rc::new(Error {
         message: format!("identifier not found: {}", identifier.value),
     })
+}
+
+fn eval_index_expression(left: &dyn Object, index: &dyn Object) -> Rc<dyn Object> {
+    if let Some(array) = left.downcast_ref::<Array>() {
+        if let Some(index) = index.downcast_ref::<Integer>() {
+            eval_array_index_expression(array, index)
+        } else {
+            Rc::new(Error {
+                message: format!("index operator not supported: {}", left.obj_type()),
+            })
+        }
+    } else {
+        Rc::new(Error {
+            message: format!("index operator not supported: {}", left.obj_type()),
+        })
+    }
+}
+
+fn eval_array_index_expression(array: &Array, index: &Integer) -> Rc<dyn Object> {
+    let max = (array.elements.len() - 1) as i64;
+    if index.value < 0 || index.value > max {
+        Rc::new(NULL)
+    } else {
+        let i = index.value as usize;
+        Rc::clone(&array.elements[i])
+    }
 }
 
 fn is_truthy(obj: &dyn Object) -> bool {
@@ -686,6 +724,36 @@ mod tests {
             test_integer_object(arr.elements[2].as_ref(), 6);
         } else {
             panic!("object is not Array. got={}", evaluated.inspect());
+        }
+    }
+
+    #[test]
+    fn test_array_index_expressions() {
+        let input: Vec<(&str, Option<i64>)> = vec![
+            ("[1, 2, 3][0]", Some(1)),
+            ("[1, 2, 3][1]", Some(2)),
+            ("[1, 2, 3][2]", Some(3)),
+            ("let i = 0; [1][i];", Some(1)),
+            ("[1, 2, 3][1 + 1];", Some(3)),
+            ("let myArray = [1, 2, 3]; myArray[2];", Some(3)),
+            (
+                "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                Some(6),
+            ),
+            (
+                "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i];",
+                Some(2),
+            ),
+            ("[1, 2, 3][3]", None),
+            ("[1, 2, 3][-1]", None),
+        ];
+        for (case, expected) in input {
+            let evaluated = test_eval(case);
+            if let Some(expected) = expected {
+                test_integer_object(evaluated.as_ref(), expected);
+            } else {
+                test_null_object(evaluated.as_ref());
+            }
         }
     }
 
