@@ -3,14 +3,15 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
     ast::{
-        BlockStatement, Boolean as BooleanAst, CallExpression, Expression, ExpressionStatement,
-        FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-        Node, PrefixExpression, Program, ReturnStatement, StringLiteral,
+        ArrayLiteral, BlockStatement, Boolean as BooleanAst, CallExpression, Expression,
+        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, InfixExpression,
+        IntegerLiteral, LetStatement, Node, PrefixExpression, Program, ReturnStatement,
+        StringLiteral,
     },
     object::{
-        Boolean, Builtin, Environment, Error, Function, Integer, Object, ReturnValue, StringObj,
-        BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ, STRING_OBJ,
-        TRUE,
+        Array, Boolean, Builtin, Environment, Error, Function, Integer, Object, ReturnValue,
+        StringObj, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ,
+        STRING_OBJ, TRUE,
     },
 };
 
@@ -132,6 +133,14 @@ pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
         return Rc::new(StringObj {
             value: str.value.clone(),
         });
+    }
+
+    if let Some(arr) = node.downcast_ref::<ArrayLiteral>() {
+        let elements = eval_expressions(arr.elements.iter().map(Rc::clone).collect(), env);
+        if elements.len() == 1 && is_error(elements[0].as_ref()) {
+            return Rc::clone(&elements[0]);
+        }
+        return Rc::new(Array { elements });
     }
 
     new_error(&format!("eval: Unknown node type {}", node.token_literal()))
@@ -373,7 +382,7 @@ mod tests {
     use super::*;
     use crate::{
         lexer::Lexer,
-        object::{Boolean, Error, Function, StringObj},
+        object::{Array, Boolean, Error, Function, StringObj},
         parser::Parser,
     };
 
@@ -657,6 +666,26 @@ mod tests {
             assert_eq!(str.value, "Hello World!");
         } else {
             panic!("object is not String. got={}", evaluated.inspect());
+        }
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let evaluated = test_eval(input);
+        if let Some(arr) = evaluated.downcast_ref::<Array>() {
+            if arr.elements.len() != 3 {
+                panic!(
+                    "array has wrong num of elements. got={}",
+                    arr.elements.len()
+                );
+            }
+            test_integer_object(arr.elements[0].as_ref(), 1);
+            test_integer_object(arr.elements[1].as_ref(), 4);
+            test_integer_object(arr.elements[2].as_ref(), 6);
+        } else {
+            panic!("object is not Array. got={}", evaluated.inspect());
         }
     }
 
