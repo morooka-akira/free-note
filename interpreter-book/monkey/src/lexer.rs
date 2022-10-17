@@ -1,7 +1,7 @@
 use crate::token::{
-    lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COMMA, EOF, EQ, GT, ILLEGAL, INT,
-    LBRACE, LBRACKET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RBRACKET, RPAREN, SEMICOLON, SLASH,
-    STRING,
+    lookup_ident, Token, TokenType, ASSIGN, ASTERISK, BANG, COLON, COMMA, EOF, EQ, GT, ILLEGAL,
+    INT, LBRACE, LBRACKET, LPAREN, LT, MINUS, NOT_EQ, PLUS, RBRACE, RBRACKET, RPAREN, SEMICOLON,
+    SLASH, STRING,
 };
 
 pub struct Lexer<'a> {
@@ -90,6 +90,7 @@ impl<'a> Lexer<'a> {
                     new_token(ASSIGN, self.ch)
                 }
             }
+            ':' => new_token(COLON, self.ch),
             ';' => new_token(SEMICOLON, self.ch),
             '(' => new_token(LPAREN, self.ch),
             ')' => new_token(RPAREN, self.ch),
@@ -162,7 +163,9 @@ fn is_digit(ch: char) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::{ELSE, FALSE, FUNCTION, IDENT, IF, LBRACKET, LET, RETURN, STRING, TRUE};
+    use crate::token::{
+        COLON, ELSE, FALSE, FUNCTION, IDENT, IF, LBRACKET, LET, RETURN, STRING, TRUE,
+    };
 
     use super::*;
     struct NextTokenTest {
@@ -218,6 +221,7 @@ mod tests {
             "foobar";
             "foo bar";
             [1, 2];
+            {"foo": "bar"};
         "#;
         let tests = [
             NextTokenTest {
@@ -547,6 +551,30 @@ mod tests {
             NextTokenTest {
                 expected_type: RBRACKET,
                 expected_literal: "]",
+            },
+            NextTokenTest {
+                expected_type: SEMICOLON,
+                expected_literal: ";",
+            },
+            NextTokenTest {
+                expected_type: LBRACE,
+                expected_literal: "{",
+            },
+            NextTokenTest {
+                expected_type: STRING,
+                expected_literal: "foo",
+            },
+            NextTokenTest {
+                expected_type: COLON,
+                expected_literal: ":",
+            },
+            NextTokenTest {
+                expected_type: STRING,
+                expected_literal: "bar",
+            },
+            NextTokenTest {
+                expected_type: RBRACE,
+                expected_literal: "}",
             },
             NextTokenTest {
                 expected_type: SEMICOLON,
