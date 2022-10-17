@@ -10,8 +10,8 @@ use crate::{
     },
     object::{
         Array, Boolean, Builtin, Environment, Error, Function, Integer, Object, ReturnValue,
-        StringObj, ARRAY_OBJ, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ,
-        RETURN_VALUE_OBJ, STRING_OBJ, TRUE,
+        StringObj, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ,
+        STRING_OBJ, TRUE,
     },
 };
 
@@ -26,8 +26,59 @@ fn len(arg: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
                 value: str.value.len() as i64,
             });
         }
+
+        if let Some(arr) = val.downcast_ref::<Array>() {
+            return Rc::new(Integer {
+                value: arr.elements.len() as i64,
+            });
+        }
     }
     let e = format!("argument to `len` not supported, got {}", arg[0].obj_type());
+    return new_error(e.as_str());
+}
+
+fn rest(arg: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
+    if arg.len() != 1 {
+        return new_error(format!("wrong number of arguments. got={}, want=1", arg.len()).as_str());
+    }
+    if let Some(val) = arg.get(0) {
+        if let Some(arr) = val.downcast_ref::<Array>() {
+            let length = arr.elements.len();
+            if length > 0 {
+                return Rc::new(Array {
+                    elements: arr.elements[1..length].to_vec(),
+                });
+            } else {
+                return Rc::new(NULL);
+            }
+        }
+    }
+    let e = format!(
+        "argument to `rest` must be ARRAY. got={}",
+        arg[0].obj_type()
+    );
+    return new_error(e.as_str());
+}
+
+fn push(arg: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
+    if arg.len() != 2 {
+        return new_error(format!("wrong number of arguments. got={}, want=2", arg.len()).as_str());
+    }
+    if let Some(val) = arg.get(0) {
+        if let Some(arr) = val.downcast_ref::<Array>() {
+            let mut new_element: Vec<Rc<dyn Object>> = arr.elements.iter().map(Rc::clone).collect();
+            if let Some(val) = arg.get(1) {
+                new_element.push(Rc::clone(val));
+            }
+            return Rc::new(Array {
+                elements: new_element,
+            });
+        }
+    }
+    let e = format!(
+        "argument to `rest` must be ARRAY. got={}",
+        arg[0].obj_type()
+    );
     return new_error(e.as_str());
 }
 
@@ -37,6 +88,18 @@ static BUILTIN: Lazy<HashMap<&str, Arc<Builtin>>> = Lazy::new(|| {
         "len",
         Arc::new(Builtin {
             builtin_function: len,
+        }),
+    );
+    m.insert(
+        "rest",
+        Arc::new(Builtin {
+            builtin_function: rest,
+        }),
+    );
+    m.insert(
+        "push",
+        Arc::new(Builtin {
+            builtin_function: push,
         }),
     );
     m
