@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, fmt::Write, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 

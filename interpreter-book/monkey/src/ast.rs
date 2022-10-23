@@ -1,9 +1,10 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use downcast_rs::{impl_downcast, Downcast};
 
 use crate::token::Token;
 use core::fmt::Debug;
+use std::hash::Hash;
 
 pub trait Node: Downcast {
     fn token_literal(&self) -> String;
@@ -35,6 +36,15 @@ impl Debug for dyn Expression {
         let r = write!(f, "Expression -> {}", self.token_literal());
         r
     }
+}
+impl PartialEq for dyn Expression {
+    fn eq(&self, other: &Self) -> bool {
+        self.string() == other.string()
+    }
+}
+impl Eq for dyn Expression {}
+impl Hash for dyn Expression {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
 }
 
 /* ----------------------------------------------- */
@@ -329,6 +339,34 @@ impl Node for IndexExpression {
 }
 
 impl Expression for IndexExpression {
+    fn expression_node(&self) -> bool {
+        true
+    }
+}
+
+/* ----------------------------------------------- */
+pub struct HashLiteral {
+    pub token: Rc<Token>,
+    pub pairs: HashMap<Rc<dyn Expression>, Rc<dyn Expression>>,
+}
+
+impl Node for HashLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.to_string()
+    }
+
+    fn string(&self) -> String {
+        let mut buf = String::new();
+        buf.push('{');
+        for (key, val) in self.pairs.iter() {
+            buf.push_str(format!("{}:{}", key.string(), val.string()).as_str());
+        }
+        buf.push('}');
+        buf
+    }
+}
+
+impl Expression for HashLiteral {
     fn expression_node(&self) -> bool {
         true
     }
