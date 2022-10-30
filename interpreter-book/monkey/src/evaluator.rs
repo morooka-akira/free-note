@@ -15,6 +15,13 @@ use crate::{
     },
 };
 
+fn puts(arg: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
+    for obj in arg {
+        println!("{}", obj.inspect());
+    }
+    Rc::new(NULL)
+}
+
 fn len(arg: Vec<Rc<dyn Object>>) -> Rc<dyn Object> {
     if arg.len() != 1 {
         return new_error(format!("wrong number of arguments. got={}, want=1", arg.len()).as_str());
@@ -100,6 +107,12 @@ static BUILTIN: Lazy<HashMap<&str, Arc<Builtin>>> = Lazy::new(|| {
         "push",
         Arc::new(Builtin {
             builtin_function: push,
+        }),
+    );
+    m.insert(
+        "puts",
+        Arc::new(Builtin {
+            builtin_function: puts,
         }),
     );
     m
