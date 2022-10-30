@@ -4,14 +4,14 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 use crate::{
     ast::{
         ArrayLiteral, BlockStatement, Boolean as BooleanAst, CallExpression, Expression,
-        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, IndexExpression,
-        InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression, Program,
-        ReturnStatement, StringLiteral,
+        ExpressionStatement, FunctionLiteral, HashLiteral, Identifier, IfExpression,
+        IndexExpression, InfixExpression, IntegerLiteral, LetStatement, Node, PrefixExpression,
+        Program, ReturnStatement, StringLiteral,
     },
     object::{
-        Array, Boolean, Builtin, Environment, Error, Function, Integer, Object, ReturnValue,
-        StringObj, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL, NULL_OBJ, RETURN_VALUE_OBJ,
-        STRING_OBJ, TRUE,
+        Array, Boolean, Builtin, Environment, Error, Function, Hash, HashKey, HashPair, Hashable,
+        Integer, Object, ReturnValue, StringObj, BOOLEAN_OBJ, ERROR_OBJ, FALSE, INTEGER_OBJ, NULL,
+        NULL_OBJ, RETURN_VALUE_OBJ, STRING_OBJ, TRUE,
     },
 };
 
@@ -216,6 +216,10 @@ pub fn eval(node: &dyn Node, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
             return index;
         }
         return eval_index_expression(left.as_ref(), index.as_ref());
+    }
+
+    if let Some(hash) = node.downcast_ref::<HashLiteral>() {
+        return eval_hash_literal(hash, env);
     }
 
     new_error(&format!("eval: Unknown node type {}", node.token_literal()))
@@ -458,6 +462,34 @@ fn eval_array_index_expression(array: &Array, index: &Integer) -> Rc<dyn Object>
     }
 }
 
+fn eval_hash_literal(hash: &HashLiteral, env: Rc<RefCell<Environment>>) -> Rc<dyn Object> {
+    let mut pairs: HashMap<HashKey, HashPair> = HashMap::new();
+
+    for (key_node, val_node) in hash.pairs.iter() {
+        let key = eval(key_node.as_ref(), Rc::clone(&env));
+
+        if is_error(key.as_ref()) {
+            return key;
+        }
+        let value = eval(val_node.as_ref(), Rc::clone(&env));
+        if is_error(key.as_ref()) {
+            return value;
+        }
+        if let Some(obj) = key.downcast_ref::<Boolean>() {
+            let hash_key = obj.hash_key();
+            pairs.insert(hash_key, HashPair { key, value });
+        } else if let Some(obj) = key.downcast_ref::<StringObj>() {
+            let hash_key = obj.hash_key();
+            pairs.insert(hash_key, HashPair { key, value });
+        } else if let Some(obj) = key.downcast_ref::<Integer>() {
+            let hash_key = obj.hash_key();
+            pairs.insert(hash_key, HashPair { key, value });
+        }
+    }
+
+    Rc::new(Hash { pairs })
+}
+
 fn is_truthy(obj: &dyn Object) -> bool {
     if obj.obj_type() == NULL_OBJ {
         return false;
@@ -483,7 +515,7 @@ mod tests {
     use super::*;
     use crate::{
         lexer::Lexer,
-        object::{Array, Boolean, Error, Function, StringObj},
+        object::{Array, Boolean, Error, Function, Hash, HashKey, Hashable, StringObj},
         parser::Parser,
     };
 
@@ -817,6 +849,62 @@ mod tests {
             } else {
                 test_null_object(evaluated.as_ref());
             }
+        }
+    }
+
+    #[test]
+    fn test_hash_literals() {
+        let input = r#"
+        let two = "two";
+        {
+            "one": 10 - 9,
+            two: 1 + 1,
+            "thr" + "ee": 6 / 2,
+            4: 4,
+            true: 5,
+            false: 6
+        }
+        "#;
+
+        let evaluated = test_eval(input);
+
+        if let Some(hash) = evaluated.downcast_ref::<Hash>() {
+            let mut expected: HashMap<HashKey, i64> = HashMap::new();
+            expected.insert(
+                StringObj {
+                    value: "one".to_string(),
+                }
+                .hash_key(),
+                1,
+            );
+            expected.insert(
+                StringObj {
+                    value: "two".to_string(),
+                }
+                .hash_key(),
+                2,
+            );
+            expected.insert(
+                StringObj {
+                    value: "three".to_string(),
+                }
+                .hash_key(),
+                3,
+            );
+            expected.insert(Integer { value: 4 }.hash_key(), 4);
+            expected.insert(TRUE.hash_key(), 5);
+            expected.insert(FALSE.hash_key(), 6);
+
+            assert_eq!(hash.pairs.len(), expected.len());
+            for (expected_key, expected_val) in expected {
+                if let Some(pair) = hash.pairs.get(&expected_key) {
+                    test_integer_object(pair.value.as_ref(), expected_val);
+                } else {
+                    panic!("no pair for given key in Pairs.");
+                }
+            }
+        } else {
+            panic!("object is not Hash. got={}", evaluated.inspect());
         }
     }
 

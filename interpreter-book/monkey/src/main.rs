@@ -1,4 +1,5 @@
 #![feature(trait_upcasting)]
+#![feature(hasher_prefixfree_extras)]
 use users::{get_current_uid, get_user_by_uid};
 mod ast;
 mod evaluator;

@@ -1,4 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{hash_map::DefaultHasher, HashMap},
+    hash::Hasher,
+    rc::Rc,
+};
 
 use downcast_rs::{impl_downcast, Downcast};
 
@@ -14,12 +19,24 @@ pub const FUNCTION_OBJ: &str = "FUNCTION";
 pub const BUILTIN_OBJ: &str = "BUILTIN";
 pub const STRING_OBJ: &str = "STRING";
 pub const ARRAY_OBJ: &str = "ARRAY";
+pub const HASH_OBJ: &str = "HASH";
 
 pub trait Object: Downcast {
     fn obj_type(&self) -> ObjectType;
     fn inspect(&self) -> String;
 }
 impl_downcast!(Object);
+
+// ------------------------------
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct HashKey {
+    object_type: ObjectType,
+    value: u64,
+}
+
+pub trait Hashable {
+    fn hash_key(&self) -> HashKey;
+}
 
 // ------------------------------
 
@@ -37,6 +54,45 @@ impl Object for Integer {
     }
 }
 
+impl Hashable for Integer {
+    fn hash_key(&self) -> HashKey {
+        HashKey {
+            object_type: self.obj_type(),
+            value: self.value as u64,
+        }
+    }
+}
+
+// ------------------------------
+
+pub struct HashPair {
+    pub key: Rc<dyn Object>,
+    pub value: Rc<dyn Object>,
+}
+
+pub struct Hash {
+    pub pairs: HashMap<HashKey, HashPair>,
+}
+
+impl Object for Hash {
+    fn obj_type(&self) -> ObjectType {
+        HASH_OBJ.to_string()
+    }
+
+    fn inspect(&self) -> String {
+        let mut buf = String::new();
+        let mut pairs: Vec<String> = vec![];
+        for (_, pair) in self.pairs.iter() {
+            pairs.push(format!("{}: {}", pair.key.inspect(), pair.value.inspect()));
+        }
+        pairs.join(", ");
+        buf.push('{');
+        buf.push_str(pairs.join(", ").as_str());
+        buf.push('}');
+        buf
+    }
+}
+
 // ------------------------------
 
 pub struct Boolean {
@@ -50,6 +106,19 @@ impl Object for Boolean {
 
     fn inspect(&self) -> String {
         format!("{}", self.value)
+    }
+}
+
+impl Hashable for Boolean {
+    fn hash_key(&self) -> HashKey {
+        let mut value: u64 = 0;
+        if self.value {
+            value = 1;
+        }
+        HashKey {
+            object_type: self.obj_type(),
+            value,
+        }
     }
 }
 
@@ -164,6 +233,17 @@ impl Object for StringObj {
     }
 }
 
+impl Hashable for StringObj {
+    fn hash_key(&self) -> HashKey {
+        let mut hasher: DefaultHasher = DefaultHasher::new();
+        hasher.write_str(&self.value);
+        HashKey {
+            object_type: self.obj_type(),
+            value: hasher.finish(),
+        }
+    }
+}
+
 // ------------------------------
 pub struct Array {
     pub elements: Vec<Rc<dyn Object>>,
@@ -210,5 +290,30 @@ impl Environment {
 
     pub fn set(&mut self, name: &str, val: Rc<dyn Object>) -> Option<Rc<dyn Object>> {
         self.store.insert(name.to_string(), val)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Hashable, StringObj};
+
+    #[test]
+    fn test_string_hash_key() {
+        let hello1 = StringObj {
+            value: "Hello World".to_string(),
+        };
+        let hello2 = StringObj {
+            value: "Hello World".to_string(),
+        };
+        let diff1 = StringObj {
+            value: "My name is johnny".to_string(),
+        };
+        let diff2 = StringObj {
+            value: "My name is johnny".to_string(),
+        };
+
+        assert_eq!(hello1.hash_key(), hello2.hash_key());
+        assert_eq!(diff1.hash_key(), diff2.hash_key());
+        assert_ne!(hello1.hash_key(), diff1.hash_key());
     }
 }
