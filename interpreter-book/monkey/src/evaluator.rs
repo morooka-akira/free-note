@@ -445,6 +445,8 @@ fn eval_index_expression(left: &dyn Object, index: &dyn Object) -> Rc<dyn Object
                 message: format!("index operator not supported: {}", left.obj_type()),
             })
         }
+    } else if let Some(hash) = left.downcast_ref::<Hash>() {
+        eval_hash_index_expression(hash, index)
     } else {
         Rc::new(Error {
             message: format!("index operator not supported: {}", left.obj_type()),
@@ -459,6 +461,25 @@ fn eval_array_index_expression(array: &Array, index: &Integer) -> Rc<dyn Object>
     } else {
         let i = index.value as usize;
         Rc::clone(&array.elements[i])
+    }
+}
+
+fn eval_hash_index_expression(hash: &Hash, index: &dyn Object) -> Rc<dyn Object> {
+    let hash_key = if let Some(obj) = index.downcast_ref::<Boolean>() {
+        Some(obj.hash_key())
+    } else if let Some(obj) = index.downcast_ref::<StringObj>() {
+        Some(obj.hash_key())
+    } else {
+        index.downcast_ref::<Integer>().map(|obj| obj.hash_key())
+    };
+    if let Some(hash_key) = hash_key {
+        if let Some(pair) = hash.pairs.get(&hash_key) {
+            Rc::clone(&pair.value)
+        } else {
+            Rc::new(NULL)
+        }
+    } else {
+        new_error(format!("unusable as hash key: {}", index.obj_type()).as_str())
     }
 }
 
@@ -664,6 +685,10 @@ mod tests {
             ),
             ("foobar", "identifier not found: foobar"),
             ("\"Hello\" - \"World\"", "unknown operator: STRING - STRING"),
+            (
+                "{\"name\": \"Monkey\"}[fn(x) { x }];",
+                "unusable as hash key: FUNCTION",
+            ),
         ];
         for (input, expected) in input {
             let evaluated = test_eval(input);
@@ -905,6 +930,27 @@ mod tests {
             }
         } else {
             panic!("object is not Hash. got={}", evaluated.inspect());
+        }
+    }
+
+    #[test]
+    fn test_hash_index_expressions() {
+        let input: Vec<(&str, Option<i64>)> = vec![
+            ("{\"foo\": 5}[\"foo\"]", Some(5)),
+            ("{\"foo\": 5}[\"bar\"]", None),
+            ("let key = \"foo\"; {\"foo\": 5}[key]", Some(5)),
+            ("{}[\"foo\"]", None),
+            ("{5: 5}[5]", Some(5)),
+            ("{true: 5}[true]", Some(5)),
+            ("{false: 5}[false]", Some(5)),
+        ];
+        for (case, expected) in input {
+            let evaluated = test_eval(case);
+            if let Some(expected) = expected {
+                test_integer_object(evaluated.as_ref(), expected);
+            } else {
+                test_null_object(evaluated.as_ref());
+            }
         }
     }
 
