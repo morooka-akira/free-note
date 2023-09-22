@@ -1,51 +1,55 @@
+mod calendar;
+mod config;
 mod oauth;
 
+use std::{collections::HashMap, str::FromStr};
+
+use chrono::{DateTime, Duration, FixedOffset};
 use oauth::get_access_token;
-use reqwest::Client;
-use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
-struct Events {
-    items: Vec<EventItem>,
-}
-
-#[derive(Deserialize, Debug)]
-struct EventItem {
-    summary: String,
-    start: EventTime,
-    end: EventTime,
-}
-
-#[derive(Deserialize, Debug)]
-struct EventTime {
-    date_time: Option<String>,
-}
+use crate::{calendar::get_calenders, config::read_config};
 
 #[tokio::main]
 async fn main() {
+    let config = match read_config().await {
+        Ok(c) => c,
+        Err(e) => {
+            println!("config.yamlが読み込めませんでした。{:?}", e);
+            std::process::exit(1);
+        }
+    };
+    println!("{:?}", config);
+
     let result = get_access_token().await;
 
     let token = result.unwrap();
+    println!("{:?}", token.access_token);
 
-    let resp = get_calenders(&token.access_token).await.unwrap();
+    let events = get_calenders(
+        &token.access_token,
+        &config.calendar_id,
+        &config.start,
+        &config.end,
+    )
+    .await
+    .unwrap();
+    let mut total_duration = Duration::zero();
 
-    for event in resp.items {
-        println!("Event: {}", event.summary);
-        if let Some(start_time) = event.start.date_time {
-            println!("Starts at: {}", start_time);
+    let mut duration_map: HashMap<String, Duration> = HashMap::new();
+    for event in events {
+        if let (Some(summary), Some(start), Some(end)) =
+            (event.summary, event.start.date_time, event.end.date_time)
+        {
+            let start_time = DateTime::<FixedOffset>::from_str(&start).unwrap();
+            let end_time = DateTime::<FixedOffset>::from_str(&end).unwrap();
+            let duration = end_time - start_time;
+            total_duration = total_duration + duration;
+            let entry = duration_map.entry(summary).or_insert(Duration::seconds(0));
+            *entry = *entry + duration;
         }
     }
-}
-async fn get_calenders(access_token: &str) -> Result<Events, reqwest::Error> {
-    let events_url = format!(
-        "https://www.googleapis.com/calendar/v3/calendars/{}/events?access_token={}",
-        "calender_url", access_token
-    );
-    let events: Events = Client::new().get(&events_url).send().await?.json().await?;
-    println!(
-        "{:?}",
-        Client::new().get(&events_url).send().await?.text().await?
-    );
-
-    Ok(events)
+    for (summary, duration) in &duration_map {
+        println!("{}: {:?} min", summary, duration.num_minutes());
+    }
+    println!("合計時間: {:?} min", total_duration.num_minutes());
 }
