@@ -1,0 +1,10 @@
+[package]
+name = "sqlx-sample"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = {version = "1.32.0", features = ["full"]}
+sqlx = { version = "0.7.2", features = [ "mysql", "runtime-tokio-native-tls", "time", "chrono" ] }
+anyhow = "1.0.75"
+chrono = "0.4.31"
