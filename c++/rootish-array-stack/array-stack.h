@@ -1,18 +1,20 @@
 #ifndef ARRAY_STACK_H
 #define ARRAY_STACK_H
 
+template <typename T>
 class ArrayStack {
 public:
     ArrayStack();
     ~ArrayStack();
-    int get(int index);
-    int set(int index, int value);
-    void add(int index, int value);
-    int remove(int index);
+    T get(int index);
+    T set(int index, T value);
+    void add(int index, T value);
+    T remove(int index);
+    int getSize();
 private:
     int size;
     int capacity;
-    int* array;
+    T* array;
     void resize();
 };
 #endif

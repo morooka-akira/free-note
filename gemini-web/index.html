@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+      }
+    </script>
+    <script type="module">
+      import { GoogleGenerativeAI } from "@google/generative-ai";
+
+      // Fetch your API_KEY
+      const API_KEY = "<api key>";
+
+      // Access your API key (see "Set up your API key" above)
+      const genAI = new GoogleGenerativeAI(API_KEY);
+
+      // Access your API key (see "Set up your API key" above)
+
+      async function run() {
+        // For text-only input, use the gemini-pro model
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+        const prompt = document.getElementById("prompt").value;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        console.log(text);
+      }
+
+      document.getElementById("sendText").addEventListener("click", run);
+      document.getElementById("sendImage").addEventListener("click", runImage);
+      document.getElementById("sendChat").addEventListener("click", runChat);
+
+      async function fileToGenerativePart(file) {
+        const base64EncodedDataPromise = new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(",")[1]);
+          reader.readAsDataURL(file);
+        });
+        return {
+          inlineData: {
+            data: await base64EncodedDataPromise,
+            mimeType: file.type,
+          },
+        };
+      }
+
+      async function runImage() {
+        // For text-and-images input (multimodal), use the gemini-pro-vision model
+        const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+
+        const prompt = "これは何の画像でしょうか?";
+
+        const fileInputEl = document.querySelector("input[type=file]");
+        const imageParts = await Promise.all(
+          [...fileInputEl.files].map(fileToGenerativePart)
+        );
+
+        const result = await model.generateContent([prompt, ...imageParts]);
+        const response = await result.response;
+        const text = response.text();
+        console.log(text);
+      }
+
+      async function runChat() {
+        // For text-only input, use the gemini-pro model
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+        const chat = model.startChat({
+          history: [
+            {
+              role: "user",
+              parts:
+                "こんにちは、私の家には犬が2匹います。お勧めの犬の名前は何ですか？",
+            },
+            {
+              role: "model",
+              parts: "はじめまして。何を知りたいですか？",
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: 100,
+          },
+        });
+
+        const msg = "お勧めの犬の名前は何ですか？";
+
+        const result = await chat.sendMessage(msg);
+        const response = await result.response;
+        const text = response.text();
+        console.log(text);
+      }
+    </script>
+
+    <h1>Google Generative AI</h1>
+
+    <input
+      type="text"
+      id="prompt"
+      value="Write a story about a magic backpack."
+    />
+
+    <input type="file" multiple />
+
+    <button id="sendText">Textを送信</button>
+    <button id="sendImage">Imageを送信</button>
+    <button id="sendChat">Chatを送信</button>
+  </body>
+</html>

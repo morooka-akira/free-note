@@ -1,26 +1,29 @@
 #include "array-stack.h"
 
-ArrayStack::ArrayStack() {
+template <typename T>
+ArrayStack<T>::ArrayStack() {
     this->size = 0;
     this->capacity = 1; // 初期化: 配列の初期容量を1に設定
-    this->array = new int[capacity]; // 配列を初期容量で初期化
+    this->array = new T[capacity]; // 配列を初期容量で初期化
 }
 
-ArrayStack::~ArrayStack() {
+template <typename T>
+ArrayStack<T>::~ArrayStack() {
     delete[] array;
 }
 
-int ArrayStack::get(int index) {
+template <typename T>
+T ArrayStack<T>::get(int index) {
     return array[index];
 }
-
-int ArrayStack::set(int index, int value) {
-    int old_value = array[index];
+template <typename T>
+T ArrayStack<T>::set(int index, T value) {
     array[index] = value;
     return old_value;
 }
 
-void ArrayStack::add(int index, int value) {
+template <typename T>
+void ArrayStack<T>::add(int index, T value) {
     if (size + 1 >= capacity){ 
         resize();
     }
@@ -31,8 +34,9 @@ void ArrayStack::add(int index, int value) {
     size++;
 }
 
-int ArrayStack::remove(int index) {
-    int removed_value = array[index];
+template <typename T>
+T ArrayStack<T>::remove(int index) {
+    T removed_value = array[index];
     for (int i = index + 1; i < size; i++) {
         array[i - 1] = array[i];
     }
@@ -43,12 +47,18 @@ int ArrayStack::remove(int index) {
     return removed_value;
 }
 
-void ArrayStack::resize() {
+template <typename T>
+void ArrayStack<T>::resize() {
     capacity *= 2; // 配列の容量を2倍にする
-    int *new_array = new int[capacity]; // 新しい配列を新しい容量で初期化
+    T *new_array = new T[capacity]; // 新しい配列を新しい容量で初期化
     for (int i = 0; i < size; i++) {
         new_array[i] = array[i];
     }
     delete[] array;
     array = new_array;
+}
+
+template <typename T>
+int ArrayStack<T>::getSize() {
+    return size;
 }
