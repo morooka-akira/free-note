@@ -1,2 +1,5 @@
-def hello():
-    return "Hello from hello-rye-ruff!"
+def main():
+    from . import run
+
+    run.run()
+    return True
