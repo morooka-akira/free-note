@@ -16,7 +16,6 @@ document.addEventListener("click", async (e) => {
     active: true,
   });
 
-  console.log("click ", e.target);
   const tabId = tab.id;
 
   function applyCSS(tabId) {
@@ -48,11 +47,9 @@ document.addEventListener("click", async (e) => {
   }
 
   if (e.target.type === "reset") {
-    console.log("hoge");
     removeCSS(tabId);
     sendMessage(tabId, "reset");
   } else {
-    console.log("fuga");
     const url = beastNameToURL(e.target.textContent);
     applyCSS(tabId);
     sendMessage(tabId, "beastify", url);

@@ -9,5 +9,9 @@ chrome.action.onClicked.addListener((tab) => {
       files: ["./content_scripts/beastify.js"],
     });
   }
+});
+
+// ポップアップは、インストール時に設定しておく
+chrome.runtime.onInstalled.addListener(() => {
   chrome.action.setPopup({ popup: "./popup/choose_beast.html" });
 });
