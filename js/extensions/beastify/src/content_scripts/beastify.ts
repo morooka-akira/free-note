@@ -1,3 +1,6 @@
+interface Window {
+  hasRun: boolean;
+}
 (() => {
   /**
    * グローバルなガード変数をチェック、設定する。
@@ -14,7 +17,7 @@
    * 画像を指す IMG 要素の作成・スタイル適用を行い、
    * 作成したノードをドキュメント内に挿入する
    */
-  function insertBeast(beastURL) {
+  function insertBeast(beastURL: string) {
     removeExistingBeasts();
     const beastImage = document.createElement("img");
     beastImage.setAttribute("src", beastURL);
@@ -28,16 +31,14 @@
    */
   function removeExistingBeasts() {
     const existingBeasts = document.querySelectorAll(".beastify-image");
-    for (const beast of existingBeasts) {
-      beast.remove();
-    }
+    existingBeasts.forEach((beast) => beast.remove());
   }
 
   /**
    * バックグラウンドスクリプトからのメッセージを待ち受けし、
    * "beastify()" か "reset()" を呼び出す。
    */
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message: any) => {
     if (message.command === "beastify") {
       insertBeast(message.beastURL);
     } else if (message.command === "reset") {

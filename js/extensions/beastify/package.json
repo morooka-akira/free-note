@@ -9,6 +9,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@types/chrome": "^0.0.262",
     "@types/glob": "^8.1.0",
     "glob": "^10.3.10"
   }

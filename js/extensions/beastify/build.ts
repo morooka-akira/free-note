@@ -22,7 +22,7 @@ async function buildOrCopyFiles(srcDir: string, distDir: string) {
       const distPath = path.resolve(distDir, relativePath);
       await mkdirAsync(path.dirname(distPath), { recursive: true });
       if (ext === '.ts') {
-        await execAsync(`bun build ${fullPathSrc} --output ${distPath.replace('.ts', '.js')}`);
+        await execAsync(`bun build ${fullPathSrc} --outfile=${distPath.replace('.ts', '.js')}`);
       } else {
         await copyFileAsync(fullPathSrc, distPath);
       }
