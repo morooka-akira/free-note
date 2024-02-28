@@ -1,6 +1,6 @@
 const hidePage = `body > :not(.beastify-image) { display: none; }`;
 
-function beastNameToURL(beastName) {
+function beastNameToURL(beastName: string) {
   switch (beastName) {
     case "Frog":
       return chrome.runtime.getURL("beasts/frog.jpg");
@@ -18,21 +18,21 @@ document.addEventListener("click", async (e) => {
 
   const tabId = tab.id;
 
-  function applyCSS(tabId) {
+  function applyCSS(tabId: number) {
     chrome.scripting.insertCSS({
       target: { tabId: tabId },
       css: hidePage,
     });
   }
 
-  function removeCSS(tabId) {
+  function removeCSS(tabId: number) {
     chrome.scripting.removeCSS({
       target: { tabId: tabId },
       css: hidePage,
     });
   }
 
-  function sendMessage(tabId, command, url) {
+  function sendMessage(tabId: number, command: string, url: string) {
     chrome.tabs
       .sendMessage(tabId, {
         command: command,
@@ -46,16 +46,17 @@ document.addEventListener("click", async (e) => {
       });
   }
 
-  if (e.target.type === "reset") {
-    removeCSS(tabId);
-    sendMessage(tabId, "reset");
+  if (e.target && (e.target as HTMLButtonElement).type === "reset") {
+    if (tabId) {
+      removeCSS(tabId);
+      sendMessage(tabId, "reset", "");
+    }
   } else {
-    const url = beastNameToURL(e.target.textContent);
+  const url = beastNameToURL((e.target as HTMLElement)?.textContent as string);
+  if (tabId && url) {
     applyCSS(tabId);
     sendMessage(tabId, "beastify", url);
+    }
   }
 });
 
-function reportError(error) {
-  console.error(`Could not beastify: ${error}`);
-}
