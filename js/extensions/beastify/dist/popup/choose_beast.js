@@ -1,6 +1,6 @@
 const hidePage = `body > :not(.beastify-image) { display: none; }`;
 function beastNameToURL(beastName) {
-  switch(beastName){
+  switch (beastName) {
     case "Frog":
       return chrome.runtime.getURL("beasts/frog.jpg");
     case "Snake":
@@ -9,34 +9,34 @@ function beastNameToURL(beastName) {
       return chrome.runtime.getURL("beasts/turtle.jpg");
   }
 }
-document.addEventListener("click", async (e)=>{
+document.addEventListener("click", async (e) => {
   const [tab] = await chrome.tabs.query({
-    active: true
+    active: true,
   });
   const tabId = tab.id;
   function applyCSS(tabId) {
     chrome.scripting.insertCSS({
       target: {
-        tabId: tabId
+        tabId: tabId,
       },
-      css: hidePage
+      css: hidePage,
     });
   }
   function removeCSS(tabId) {
     chrome.scripting.removeCSS({
       target: {
-        tabId: tabId
+        tabId: tabId,
       },
-      css: hidePage
+      css: hidePage,
     });
   }
   function sendMessage(tabId, command, url) {
     chrome.tabs.sendMessage(tabId, {
       command: command,
-      beastURL: url
-    }).then((response)=>{
+      beastURL: url,
+    }).then((response) => {
       console.log("response", response);
-    }).catch((error)=>{
+    }).catch((error) => {
       console.error(`Could not beastify: ${error}`);
     });
   }

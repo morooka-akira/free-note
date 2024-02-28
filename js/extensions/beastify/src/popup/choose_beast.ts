@@ -52,11 +52,12 @@ document.addEventListener("click", async (e) => {
       sendMessage(tabId, "reset", "");
     }
   } else {
-  const url = beastNameToURL((e.target as HTMLElement)?.textContent as string);
-  if (tabId && url) {
-    applyCSS(tabId);
-    sendMessage(tabId, "beastify", url);
+    const url = beastNameToURL(
+      (e.target as HTMLElement)?.textContent as string,
+    );
+    if (tabId && url) {
+      applyCSS(tabId);
+      sendMessage(tabId, "beastify", url);
     }
   }
 });
-
