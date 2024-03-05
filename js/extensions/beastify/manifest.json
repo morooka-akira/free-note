@@ -13,8 +13,8 @@
 
   "action": {
     "default_icon": "icons/beasts-32.png",
-    "default_title": "Beastify"
-    // "default_popup": "popup/choose_beast.html"
+    "default_title": "Beastify",
+    "default_popup": "index.html"
   },
   "content_scripts": [
     {
@@ -27,8 +27,5 @@
       "resources": ["beasts/frog.jpg", "beasts/turtle.jpg", "beasts/snake.jpg"],
       "matches": ["*://*/*"]
     }
-  ],
-  "background": {
-    "service_worker": "background.js"
-  }
+  ]
 }
