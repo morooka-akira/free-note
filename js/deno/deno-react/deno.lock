@@ -1,7 +1,8 @@
 {
   "version": "3",
   "redirects": {
-    "https://esm.sh/preact/jsx-runtime": "https://esm.sh/preact@10.19.6/jsx-runtime"
+    "https://esm.sh/preact/jsx-runtime": "https://esm.sh/preact@10.19.6/jsx-runtime",
+    "https://esm.sh/v128/@types/react@~18.0/jsx-runtime~.d.ts": "https://esm.sh/v128/@types/react@18.2.38/jsx-runtime~.d.ts"
   },
   "remote": {
     "https://deno.land/std@0.140.0/_util/assert.ts": "e94f2eb37cebd7f199952e242c77654e43333c1ac4c5c700e929ea3aa5489f74",
@@ -149,7 +150,14 @@
     "https://deno.land/x/wasmbuild@0.15.1/cache.ts": "9d01b5cb24e7f2a942bbd8d14b093751fa690a6cde8e21709ddc97667e6669ed",
     "https://deno.land/x/wasmbuild@0.15.1/loader.ts": "8c2fc10e21678e42f84c5135d8ab6ab7dc92424c3f05d2354896a29ccfd02a63",
     "https://esm.sh/preact@10.19.6/jsx-runtime": "f4c9e5f72ef18435eab846ae02e315a63da724f64fb08d806d2ddeaf08d99bd8",
+    "https://esm.sh/react-dom@18.0.0": "9ae5f81f549ee943d6abe0651a20ebd8ef4adc2a929a51914fe76e0c579e39d3",
+    "https://esm.sh/react@18.0.0/jsx-dev-runtime": "310ad24a021e6eef99a53d0fa1c22041f642da63700a0ca032fe2c4cf936dc9a",
     "https://esm.sh/stable/preact@10.19.6/denonext/jsx-runtime.js": "97e9eeb40443de53a8cb3b70f264d04db2bbfc5c2298fdb15d1c471283ccd6aa",
-    "https://esm.sh/stable/preact@10.19.6/denonext/preact.mjs": "68491395d287895f4d697e403ded5b0ebb8fed0494f9e870c422bc017e5e52f5"
+    "https://esm.sh/stable/preact@10.19.6/denonext/preact.mjs": "68491395d287895f4d697e403ded5b0ebb8fed0494f9e870c422bc017e5e52f5",
+    "https://esm.sh/stable/react@18.0.0/denonext/jsx-dev-runtime.development.js": "ec89ffba8fa5c8c88be0ec8de528edb3ebf1931981cf7b8b693fad61bf231978",
+    "https://esm.sh/stable/react@18.0.0/denonext/react.development.mjs": "147a83a00b385fde438803298ed9361dadb0a10aa07769da39cf5a7e510f3330",
+    "https://esm.sh/stable/react@18.0.0/denonext/react.mjs": "4f24a7aa3e27a3b80c6912be3d7a9676ff1abe0c75b969612e2e54f4490c9504",
+    "https://esm.sh/v135/react-dom@18.0.0/denonext/react-dom.mjs": "cc32d789830d7f05c430450849ffffc844e5359db0fc39650cbd285b07f50793",
+    "https://esm.sh/v135/scheduler@0.21.0/denonext/scheduler.mjs": "b9f0aebb1a5045c90d14b77d040acb76f67bd5d6606a0ed45a06c4a12114f55c"
   }
 }

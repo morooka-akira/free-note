@@ -1,8 +1,9 @@
-import { React, react, ReactDOM } from "./deps.ts";
+import { React } from "./deps.ts";
+
 export default function App() {
   return (
     <div>
-      <h1>Hello, world!!!!!!!!!!!!!!!!!</h1>
+      <h1>Hello, world</h1>
     </div>
   );
 }
