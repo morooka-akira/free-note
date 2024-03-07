@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "build": "deno run --allow-env --allow-read --allow-write transpile.ts"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "esnext"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "imports": {
+    // react/jsx-runtimeを自動でimportするため必要
+    "react/": "https://esm.sh/react@18.0.0/"
+  }
+}
