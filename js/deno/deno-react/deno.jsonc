@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "build": "deno run --allow-net --allow-env --allow-read --allow-write transpile.ts"
+    "build": "deno run --allow-net --allow-env --allow-read --allow-write build.ts"
   },
   "compilerOptions": {
     "lib": ["deno.ns", "dom", "esnext"],
