@@ -3,9 +3,7 @@
     "build": "deno run --allow-net --allow-env --allow-read --allow-write build.ts"
   },
   "compilerOptions": {
-    "lib": ["deno.ns", "dom", "esnext"],
-    "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "lib": ["deno.ns", "dom", "esnext"]
   },
   "imports": {
     // react/jsx-runtimeを自動でimportするため必要
