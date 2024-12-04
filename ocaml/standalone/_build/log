@@ -1,0 +1,17 @@
+# dune build sum.bc
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Shared cache location: /Users/mor/.cache/dune/db
+# Workspace root:
+# /Users/mor/repos/my-work/github.com/morooka-akira/free-note/ocaml/standalone
+# Auto-detected concurrency: 12
+# Dune context:
+#  { name = "default"
+#  ; kind = "default"
+#  ; profile = Dev
+#  ; merlin = true
+#  ; fdo_target_exe = None
+#  ; build_dir = In_build_dir "default"
+#  ; instrument_with = []
+#  }
+$ /Users/mor/.opam/default/bin/ocamlc.opt -config > /var/folders/8_/y1h9j4bs5bs1cw_kc15qjzg40000gn/T/dune_7ced43_output
